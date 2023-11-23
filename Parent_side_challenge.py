@@ -16,12 +16,14 @@ nonce_list = set()
 baby_state = 0
 set_volume(100)
 
-def generate_nonce():
-    while True:
-        nonce = random.randint(100000)
-        if nonce not in nonce_list:
-            nonce_list.add(nonce)
-            return nonce
+def generate_nonce(a=1, b=100000):
+    if len(nonce_list) != b:
+        while True:
+            nonce = random.randint(a, b)
+            if nonce not in nonce_list:
+                nonce_list.add(nonce)
+                return nonce
+    return 0
 
 def hashing(string):
 	"""

@@ -9,12 +9,14 @@ radio.config(group=18, channel=2, address=0x11111111)
 
 nonce_list = set()
 
-def generate_nonce():
-    while True:
-        nonce = random.randint(100000)
-        if nonce not in nonce_list:
-            nonce_list.add(nonce)
-            return nonce
+def generate_nonce(a=1, b=100000):
+    if len(nonce_list) != b:
+        while True:
+            nonce = random.randint(a, b)
+            if nonce not in nonce_list:
+                nonce_list.add(nonce)
+                return nonce
+    return 0
 
 def hashing(string):
 	"""
