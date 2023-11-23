@@ -1,0 +1,24 @@
+Liste des fonctionnalité à implémenter.
+
+- Transmission message crypté:
+	X-
+	X-
+	X-
+	X-
+
+- Surveillance état du bébé:
+	X- Si le bébé se déplace de 1m du point de "couchage", alerte parents
+	X- Si le bébé fait un bruit fort, alerte parents
+	X- 
+	X-
+
+- Suivis du lait:
+	X- Ajouter une dose
+	X- Supprimer la dernière dose ajouté
+	X- Remmetre à 0
+	X- Voir consommation chez les deux be:bi
+	X- Historique des prises de lait
+
+- Capteur de température
+	X- Si la température monte trop haut ou baisse trop bas, alerte parents
+	X- Voir la température du be:bi enfant sur les deux be:bi
