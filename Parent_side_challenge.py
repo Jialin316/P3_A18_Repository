@@ -131,7 +131,7 @@ def unpack_data(encrypted_packet, key):
     content = vigenere(message[1], key, True)
     
     nonce = vigenere(message[0], key, True)
-    if nonce not in nonce_list():
+    if nonce not in nonce_list:
         nonce_list.add(nonce)
         return [type, lenght, content]
     else:
@@ -171,7 +171,8 @@ def respond_to_connexion_request(key):
 
 
 while True:
-    message = radio.receive()
-    if message:
-        list_message = unpack_data(message, key)
-        display.scroll(" ".join(list_message))
+    packet = radio.receive()
+    if packet:
+        list_message = unpack_data(packet, key)
+        message = " ".join(list_message)
+        display.scroll(message)

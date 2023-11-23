@@ -121,7 +121,7 @@ def unpack_data(encrypted_packet, key):
     content = vigenere(message[1], key, True)
     
     nonce = vigenere(message[0], key, True)
-    if nonce not in nonce_list():
+    if nonce not in nonce_list:
         nonce_list.add(nonce)
         return [type, lenght, content]
     else:
