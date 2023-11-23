@@ -4,7 +4,7 @@ import random
 import music
 
 #Can be used to filter the communication, only the ones with the same parameters will receive messages
-#radio.config(group=23, channel=2, address=0x11111111)
+radio.config(group=18, channel=2, address=0x11111111)
 #default : channel=7 (0-83), address = 0x75626974, group = 0 (0-255)
 
 #Initialisation des variables du micro:bit
@@ -91,6 +91,17 @@ def send_packet(key, type, content):
 	:return none
     """
 
+    nounce_c = vigenere(random.randint(0, 100000), key)
+    lenght_c = vigenere(len(content), key)
+    type_c = vigenere(type, key)
+    content_c = vigenere(content, key)
+    
+    encrypted_packet = type_c + "|" + lenght_c + "|" + nounce_c + ":" + content_c
+    radio.on()
+    radio.send(encrypted_packet)
+    
+    return(encrypted_packet)
+
 #Unpack the packet, check the validity and return the type, length and content
 def unpack_data(encrypted_packet, key):
     """
@@ -100,9 +111,18 @@ def unpack_data(encrypted_packet, key):
     :param (str) encrypted_packet: Paquet reçu
            (str) key:              Clé de chiffrement
 	:return (srt)type:             Type de paquet
-            (int)length:           Longueur de la donnée en caractères
+            (int)lenght:           Longueur de la donnée en caractères
             (str) message:         Données reçue
     """
+    
+    encrypted_packet = encrypted_packet.split("|")
+    type = vigenere(encrypted_packet[0], key, True)
+    lenght = vigenere(encrypted_packet[1], key, True)
+    message = encrypted_packet[2].split(":")
+    nounce = vigenere(message[0], key, True)
+    content = vigenere(message[1], key, True)
+    
+    return [type, lenght, content]
 
 def receive_packet(packet_received, key):
     """
@@ -136,5 +156,9 @@ def respond_to_connexion_request(key):
 	:return (srt) challenge_response:   Réponse au challenge
     """
 
-def main():
-    print(hashing("Test"))
+
+while True:
+    message = radio.receive()
+    if message:
+        list_message = unpack_data(message, key)
+        display.scroll(" ".join(list_message))

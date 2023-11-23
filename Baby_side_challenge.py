@@ -4,10 +4,8 @@ import random
 import music
 
 #Can be used to filter the communication, only the ones with the same parameters will receive messages
-#radio.config(group=23, channel=2, address=0x11111111)
+radio.config(group=18, channel=2, address=0x11111111)
 #default : channel=7 (0-83), address = 0x75626974, group = 0 (0-255)
-
-
 
 def hashing(string):
 	"""
@@ -71,7 +69,7 @@ def vigenere(message, key, decryption=False):
         else:
             text += char
     return text
-    
+
 def send_packet(key, type, content):
     """
     Envoie de données fournie en paramètres
@@ -82,6 +80,15 @@ def send_packet(key, type, content):
            (str) content:   Données à envoyer
 	:return none
     """
+
+    nounce_c = vigenere(random.randint(0, 100000), key)
+    lenght_c = vigenere(len(content), key)
+    type_c = vigenere(type, key)
+    content_c = vigenere(content, key)
+    
+    encrypted_packet = type_c + "|" + lenght_c + "|" + nounce_c + ":" + content_c
+    radio.on()
+    radio.send(encrypted_packet)
 
 #Decrypt and unpack the packet received and return the fields value
 def unpack_data(encrypted_packet, key):
@@ -95,7 +102,14 @@ def unpack_data(encrypted_packet, key):
             (int)lenght:           Longueur de la donnée en caractères
             (str) message:         Données reçues
     """
-
+    encrypted_packet = encrypted_packet.split("|")
+    type = vigenere(encrypted_packet[0], key, True)
+    lenght = vigenere(encrypted_packet[1], key, True)
+    message = encrypted_packet[2].split(":")
+    nounce = vigenere(message[0], key, True)
+    content = vigenere(message[1], key, True)
+    
+    return [type, lenght, content]
 
 #Unpack the packet, check the validity and return the type, length and content
 def receive_packet(packet_received, key):
@@ -130,5 +144,7 @@ def establish_connexion(key):
 	:return (srt)challenge_response:   Réponse au challenge
     """
 
-def main():
-    return True
+
+while True:
+    if button_a.was_pressed():
+        send_packet("KEYWORD", "0x01", "Test")
