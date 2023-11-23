@@ -7,6 +7,15 @@ import music
 radio.config(group=18, channel=2, address=0x11111111)
 #default : channel=7 (0-83), address = 0x75626974, group = 0 (0-255)
 
+nonce_list = set()
+
+def generate_nonce():
+    while True:
+        nonce = random.randint(100000)
+        if nonce not in nonce_list:
+            nonce_list.add(nonce)
+            return nonce
+
 def hashing(string):
 	"""
 	Hachage d'une chaîne de caractères fournie en paramètre.
@@ -80,13 +89,13 @@ def send_packet(key, type, content):
            (str) content:   Données à envoyer
 	:return none
     """
-
-    nounce_c = vigenere(random.randint(0, 100000), key)
+    
+    nonce_c = vigenere(generate_nonce, key)
     lenght_c = vigenere(len(content), key)
     type_c = vigenere(type, key)
     content_c = vigenere(content, key)
     
-    encrypted_packet = type_c + "|" + lenght_c + "|" + nounce_c + ":" + content_c
+    encrypted_packet = type_c + "|" + lenght_c + "|" + nonce_c + ":" + content_c
     radio.on()
     radio.send(encrypted_packet)
 
@@ -102,14 +111,19 @@ def unpack_data(encrypted_packet, key):
             (int)lenght:           Longueur de la donnée en caractères
             (str) message:         Données reçues
     """
+    
     encrypted_packet = encrypted_packet.split("|")
     type = vigenere(encrypted_packet[0], key, True)
     lenght = vigenere(encrypted_packet[1], key, True)
     message = encrypted_packet[2].split(":")
-    nounce = vigenere(message[0], key, True)
     content = vigenere(message[1], key, True)
     
-    return [type, lenght, content]
+    nonce = vigenere(message[0], key, True)
+    if nonce not in nonce_list():
+        nonce_list.add(nonce)
+        return [type, lenght, content]
+    else:
+        return ["Nonce Error", "", "Same nonce detected"]
 
 #Unpack the packet, check the validity and return the type, length and content
 def receive_packet(packet_received, key):

@@ -16,6 +16,13 @@ nonce_list = set()
 baby_state = 0
 set_volume(100)
 
+def generate_nonce():
+    while True:
+        nonce = random.randint(100000)
+        if nonce not in nonce_list:
+            nonce_list.add(nonce)
+            return nonce
+
 def hashing(string):
 	"""
 	Hachage d'une chaîne de caractères fournie en paramètre.
@@ -91,12 +98,12 @@ def send_packet(key, type, content):
 	:return none
     """
 
-    nounce_c = vigenere(random.randint(0, 100000), key)
+    nonce_c = vigenere(random.randint(0, 100000), key)
     lenght_c = vigenere(len(content), key)
     type_c = vigenere(type, key)
     content_c = vigenere(content, key)
     
-    encrypted_packet = type_c + "|" + lenght_c + "|" + nounce_c + ":" + content_c
+    encrypted_packet = type_c + "|" + lenght_c + "|" + nonce_c + ":" + content_c
     radio.on()
     radio.send(encrypted_packet)
     
@@ -119,10 +126,14 @@ def unpack_data(encrypted_packet, key):
     type = vigenere(encrypted_packet[0], key, True)
     lenght = vigenere(encrypted_packet[1], key, True)
     message = encrypted_packet[2].split(":")
-    nounce = vigenere(message[0], key, True)
     content = vigenere(message[1], key, True)
     
-    return [type, lenght, content]
+    nonce = vigenere(message[0], key, True)
+    if nonce not in nonce_list():
+        nonce_list.add(nonce)
+        return [type, lenght, content]
+    else:
+        return ["Nonce Error", "", "Same nonce detected"]
 
 def receive_packet(packet_received, key):
     """
