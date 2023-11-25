@@ -3,11 +3,16 @@ import radio
 import random
 import music
 
-#Can be used to filter the communication, only the ones with the same parameters will receive messages
+#Initialisation des variables du micro:bit
 radio.config(group=18, channel=2, address=0x11111111)
-#default : channel=7 (0-83), address = 0x75626974, group = 0 (0-255)
-
+radio.on()
+connexion_established = False
+password = "KEYWORD"
+connexion_key = None
 nonce_list = set()
+baby_state = 0
+#set_volume(100)
+
 
 def generate_nonce(a=1, b=100000):
     if len(nonce_list) != b:
@@ -81,6 +86,7 @@ def vigenere(message, key, decryption=False):
             text += char
     return text
 
+#Encrypt and send a message of TLV type
 def send_packet(key, type, content):
     """
     Envoie de données fournie en paramètres
@@ -91,12 +97,13 @@ def send_packet(key, type, content):
            (str) content:   Données à envoyer
 	:return none
     """
-    
+    # Chiffrement des données par vigenère
     nonce_c = vigenere(generate_nonce, key)
     lenght_c = vigenere(len(content), key)
     type_c = vigenere(type, key)
     content_c = vigenere(content, key)
     
+    # Envoie du packet
     encrypted_packet = type_c + "|" + lenght_c + "|" + nonce_c + ":" + content_c
     radio.on()
     radio.send(encrypted_packet)
@@ -121,6 +128,7 @@ def unpack_data(encrypted_packet, key):
     content = vigenere(message[1], key, True)
     
     nonce = vigenere(message[0], key, True)
+    # Vérifie si le nonce est unique, sinon retourne Erreur
     if nonce not in nonce_list:
         nonce_list.add(nonce)
         return [type, lenght, content]
@@ -163,4 +171,4 @@ def establish_connexion(key):
 
 while True:
     if button_a.was_pressed():
-        send_packet("KEYWORD", "0x01", "Test")
+        send_packet(password, "0x01", "Test")
