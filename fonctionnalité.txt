@@ -4,8 +4,13 @@ Liste des fonctionnalité à implémenter.
 	V- Envoyer et recevoir message crypté
 	V- Connexion sécurisé
 
+- Navigation utilisateur:
+	X- Chercher des images correspondant pour chaques actions
+	X- Fonction permettant d'afficher une image et prononcé une description
+	X- Fonction permettant de changer d'action en appuyant sur le bouton a ou b et confirmer le choix en appuyant sur le bouton tactile
+
 - Surveillance état du bébé:
-	X- Si le bébé se déplace de 1m du point de "couchage", alerte parents
+	X- Si le bébé se déplace de 1m du "point de couchage", alerte parents
 	X- Si le bébé fait un bruit fort, alerte parents
 
 - Suivis du lait:
