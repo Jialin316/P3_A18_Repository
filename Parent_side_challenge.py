@@ -2,6 +2,7 @@ from microbit import *
 import radio
 import random
 import music
+import speech
 
 #Initialisation des variables du micro:bit
 radio.config(group=18, channel=2, address=0x11111111)
@@ -111,7 +112,8 @@ def send_packet(key, type, content):
         radio.send(encrypted_packet)
         radio.off()
     else:
-        print("Error, no nonce available, please restard both be:bi")
+        display.scroll("Error, no nonce available, please restard both be:bi")
+
 #Unpack the packet, check the validity and return the type, length and content
 def unpack_data(encrypted_packet, key):
     """
@@ -186,6 +188,125 @@ def respond_to_connexion_request(key):
                 send_packet(new_password, "0x01", hashed_result)
                 return hashed_result, new_password
 
+image_plus = Image('00900:'
+                   '00900:'
+                   '99999:'
+                   '00900:'
+                   '00900')
+image_moins = Image('00000:'
+                    '00000:'
+                    '99999:'
+                    '00000:'
+                    '00000')
+image_zero = "0"
+image_regarder = Image.SURPRISED
 
-response, sessional_password = respond_to_connexion_request(password)
-display.scroll(response + sessional_password)
+images_lait = [image_plus, image_moins, image_zero, image_regarder, "H"]
+messages_lait = ["Ajouter du lait", "Supprimer la dernière dose ajouté", "Reset la consommation", "Voir la consommation actuel", "Voir l'historique"]
+
+def show_and_say(image, message):
+    """Fonction qui permet d'affiche une image et de prononcer un texte
+
+    Args:
+        image (Image): Objet Image
+        message (str): Texte qu'il prononcera
+    """
+    display.show(image, wait=False)
+    speech.say(message)
+
+def navigate_through(list_image, list_message):
+    """Demande à l'utilisateur de choisir dans le menu et renvoi l'index de son choix
+
+    Args:
+        list_image (list): Liste d'objet image
+        list_message (list): Liste des phrases à dire
+
+    Returns:
+        int: l'index du choix de l'utilisateur
+    """
+    # Commence à l'index 0
+    index = 0
+    show_and_say(list_image[index], list_message[index])
+    
+    while not pin_logo.is_touched():
+        # Vers la gauche si bouton a 
+        if button_a.was_pressed():
+            index -= 1
+            # Si négatif on remet à la fin
+            if index == -1:
+                index += len(list_image)
+            # Si index trop grand, retourne au début
+            index %= len(list_image)
+            show_and_say(list_image[index], list_message[index])
+        # Vers la droite si bouton b
+        elif button_b.was_pressed():
+            index += 1
+            # Si négatif on remet à la fin
+            if index == -1:
+                index += len(list_image)
+            # Si index trop grand, retourne au début
+            index %= len(list_image)
+            show_and_say(list_image[index], list_message[index])
+    return index
+
+def add_milk(history):
+    """Demande la quantité de lait donné au bébé (en mL), et retourne cette quantité
+
+    Args:
+        history (list): Liste de int avec la quantité de lait donné à chaque fois
+
+    Returns:
+        list: Historique du lait donné
+    """
+    milk = 100
+    while not pin_logo.is_touched():
+        display.scroll(str(milk))
+        if button_a.was_pressed():
+            milk -= button_a.get_presses()
+            if milk < 0:
+                milk = 0
+        elif button_b.was_pressed():
+            milk += button_b.get_presses()
+    history.append(milk)
+    show_and_say(Image.YES, "You have added " + str(milk) + "mililiter of milk")
+    sleep(500)
+    return history
+
+def remove_last_milk(history):
+    """Supprime la dernière dose de lait ajouté
+
+    Args:
+        history (list): Liste de int avec la quantité de lait donné à chaque fois
+
+    Returns:
+        list: Historique du lait donné (après avoir retiré la dernière dose)
+    """
+    if history:
+        history.pop()
+        show_and_say(Image.YES, "Last milk has been removed")
+        sleep(500)
+        return history
+    else:
+        show_and_say(Image.NO, "No history have been recorded")
+        sleep(500)
+
+def reset_milk(history):
+    history.clear()
+    show_and_say(Image.YES, "The history has been reseted")
+    sleep(500)
+    return history
+
+def show_history(history):
+    if history:
+        for element in history:
+            display.scroll(str(element))
+    else:
+        show_and_say(Image.NO, "No history have been recorded")
+        sleep(500)
+
+def show_consommation(history):
+    total = 0
+    if history:
+        for element in history:
+            total += element
+    display.scroll(str(total))

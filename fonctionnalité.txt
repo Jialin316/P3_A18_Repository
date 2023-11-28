@@ -5,20 +5,20 @@ Liste des fonctionnalité à implémenter.
 	V- Connexion sécurisé
 
 - Navigation utilisateur:
-	X- Chercher des images correspondant pour chaques actions
-	X- Fonction permettant d'afficher une image et prononcé une description
-	X- Fonction permettant de changer d'action en appuyant sur le bouton a ou b et confirmer le choix en appuyant sur le bouton tactile
+	V- Chercher des images correspondant pour chaques actions
+	V- Fonction permettant d'afficher une image et prononcé une description
+	V- Fonction permettant de changer d'action en appuyant sur le bouton a ou b et confirmer le choix en appuyant sur le bouton tactile
 
 - Surveillance état du bébé:
 	X- Si le bébé se déplace de 1m du "point de couchage", alerte parents
 	X- Si le bébé fait un bruit fort, alerte parents
 
 - Suivis du lait:
-	X- Ajouter une dose
-	X- Supprimer la dernière dose ajouté
-	X- Remmetre à 0
-	X- Voir consommation chez les deux be:bi
-	X- Historique des prises de lait
+	V- Ajouter une dose
+	V- Supprimer la dernière dose ajouté
+	V- Remmetre à 0
+	V- Voir consommation chez les deux be:bi
+	V- Historique des prises de lait
 
 - Capteur de température
 	X- Si la température monte trop haut ou baisse trop bas, alerte parents
