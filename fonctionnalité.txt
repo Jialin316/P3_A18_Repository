@@ -1,16 +1,12 @@
 Liste des fonctionnalité à implémenter.
 
 - Transmission message crypté:
-	X-
-	X-
-	X-
-	X-
+	V- Envoyer et recevoir message crypté
+	V- Connexion sécurisé
 
 - Surveillance état du bébé:
 	X- Si le bébé se déplace de 1m du point de "couchage", alerte parents
 	X- Si le bébé fait un bruit fort, alerte parents
-	X- 
-	X-
 
 - Suivis du lait:
 	X- Ajouter une dose

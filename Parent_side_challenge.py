@@ -5,10 +5,9 @@ import music
 
 #Initialisation des variables du micro:bit
 radio.config(group=18, channel=2, address=0x11111111)
-radio.on()
 connexion_established = False
-password = "KEYWORD"
-connexion_key = None
+password = "PISSEPENDOUILLE"
+sessional_password = password
 nonce_list = set()
 baby_state = 0
 #set_volume(100)
@@ -99,16 +98,20 @@ def send_packet(key, type, content):
 	:return none
     """
     # Chiffrement des données par vigenère
-    nonce_c = vigenere(generate_nonce, key)
-    lenght_c = vigenere(len(content), key)
-    type_c = vigenere(type, key)
-    content_c = vigenere(content, key)
-    
-    # Envoie du packet
-    encrypted_packet = type_c + "|" + lenght_c + "|" + nonce_c + ":" + content_c
-    radio.on()
-    radio.send(encrypted_packet)
-
+    nonce = generate_nonce()
+    if nonce:
+        nonce_c = vigenere(nonce, key)
+        lenght_c = vigenere(len(content), key)
+        type_c = vigenere(type, key)
+        content_c = vigenere(content, key)
+        
+        # Envoie du packet
+        encrypted_packet = type_c + "|" + lenght_c + "|" + nonce_c + ":" + content_c
+        radio.on()
+        radio.send(encrypted_packet)
+        radio.off()
+    else:
+        print("Error, no nonce available, please restard both be:bi")
 #Unpack the packet, check the validity and return the type, length and content
 def unpack_data(encrypted_packet, key):
     """
@@ -121,43 +124,42 @@ def unpack_data(encrypted_packet, key):
             (int)lenght:           Longueur de la donnée en caractères
             (str) message:         Données reçue
     """
-    
-    encrypted_packet = encrypted_packet.split("|")
-    type = vigenere(encrypted_packet[0], key, True)
-    lenght = vigenere(encrypted_packet[1], key, True)
-    message = encrypted_packet[2].split(":")
-    content = vigenere(message[1], key, True)
-    
-    nonce = vigenere(message[0], key, True)
-    # Vérifie si le nonce est unique, sinon retourne Erreur
-    if nonce not in nonce_list:
-        nonce_list.add(nonce)
-        return [type, lenght, content]
-    else:
-        return ["Nonce Error", "", "Same nonce detected"]
-
-#Unpack the packet, check the validity and return the type, length and content
-def receive_packet(packet_received, key):
-    """
-    Traite les paquets reçus via l'interface radio du micro:bit
-    Cette fonction utilise la fonction unpack_data pour renvoyer les différents champs du message passé en paramètre
-    Si une erreur survient, les 3 champs sont retournés vides
-
-    :param (str) packet_received: Paquet reçue
-           (str) key:              Clé de chiffrement
-	:return (srt)type:             Type de paquet
-            (int)lenght:           Longueur de la donnée en caractère
-            (str) message:         Données reçue
-    """
+    try:
+        encrypted_packet = encrypted_packet.split("|")
+        type = vigenere(encrypted_packet[0], key, True)
+        lenght = vigenere(encrypted_packet[1], key, True)
+        message = encrypted_packet[2].split(":")
+        content = vigenere(message[1], key, True)
+        
+        nonce = vigenere(message[0], key, True)
+        # Vérifie si le nonce est unique, sinon retourne Erreur
+        if nonce not in nonce_list:
+            nonce_list.add(nonce)
+            return [type, lenght, content]
+        else:
+            return ["Nonce Error", "", "Same nonce detected"]
+    except:
+        return ["Unpacking Error", "", "Couldn't unpack the packet received"]
 
 #Calculate the challenge response
 def calculate_challenge_response(challenge):
     """
-    Calcule la réponse au challenge initial de connection envoyé par l'autre micro:bit
+    Calcule la réponse au challenge initial de connection avec l'autre micro:bit
+    
+    Avec une liste de 4 chiffres, additionne les deux premiers chiffres, 
+    soustrait les deux dernier chiffre, puis multiplie les deux chiffres obtenu puis hash le résultat
 
     :param (str) challenge:            Challenge reçu
 	:return (srt)challenge_response:   Réponse au challenge
     """
+    try:
+        numbers = challenge.split(",")
+        a = int(numbers[0]) + int(numbers[1])
+        b = int(numbers[2]) - int(numbers[3])
+        result = str(a * b)
+        return hashing(result)
+    except:
+        return challenge
 
 #Respond to a connexion request by sending the hash value of the number received
 def respond_to_connexion_request(key):
@@ -168,11 +170,22 @@ def respond_to_connexion_request(key):
     :param (str) key:                   Clé de chiffrement
 	:return (srt) challenge_response:   Réponse au challenge
     """
+    # Réception du packet
+    radio.on()
+    while True:
+        packet = radio.receive()
+        if packet:
+            # Unpack du packet
+            list_message = unpack_data(packet, key)
+            # Si type correspondant
+            if list_message[0] == "0x01":
+                # Retourne le hash de la réponse et le nouveau mot de passe
+                hashed_result = calculate_challenge_response(list_message[2])
+                new_password = str(hashed_result[-3:]) + key
+                sleep(1000)
+                send_packet(new_password, "0x01", hashed_result)
+                return hashed_result, new_password
 
 
-while True:
-    packet = radio.receive()
-    if packet:
-        list_message = unpack_data(packet, password)
-        message = " ".join(list_message)
-        display.scroll(message)
+response, sessional_password = respond_to_connexion_request(password)
+display.scroll(response + sessional_password)
