@@ -5,16 +5,17 @@ import music
 import speech
 
 #Initialisation des variables du micro:bit
-radio.config(group=18, channel=2, address=0x11111111)
+radio.config(group=18, channel=2, address=0x11111111, length=251)
+radio.on()
 connexion_established = False
 password = "PISSEPENDOUILLE"
-sessional_password = password
+sessional_password = ""
 nonce_list = set()
 baby_state = 0
 #set_volume(100)
 
 
-def generate_nonce(a=1, b=100000):
+def generate_nonce(a=1, b=1000):
     if len(nonce_list) != b:
         while True:
             nonce = random.randint(a, b)
@@ -108,9 +109,7 @@ def send_packet(key, type, content):
         
         # Envoie du packet
         encrypted_packet = type_c + "|" + lenght_c + "|" + nonce_c + ":" + content_c
-        radio.on()
         radio.send(encrypted_packet)
-        radio.off()
     else:
         display.scroll("Error, no nonce available, please restard both be:bi")
 
@@ -173,7 +172,6 @@ def respond_to_connexion_request(key):
 	:return (srt) challenge_response:   Réponse au challenge
     """
     # Réception du packet
-    radio.on()
     while True:
         packet = radio.receive()
         if packet:
@@ -187,6 +185,7 @@ def respond_to_connexion_request(key):
                 sleep(1000)
                 send_packet(new_password, "0x01", hashed_result)
                 return hashed_result, new_password
+            return "Incorrect Type", ""
 
 image_plus = Image('00900:'
                    '00900:'
@@ -200,9 +199,29 @@ image_moins = Image('00000:'
                     '00000')
 image_zero = "0"
 image_regarder = Image.SURPRISED
+image_history = Image('00900:'
+                      '00900:'
+                      '00999:'
+                      '00000:'
+                      '00000')
+image_retour = Image('00000:'
+                     '00009:'
+                     '09009:'
+                     '99999:'
+                     '09000')
+image_statut_bebe = Image.HAPPY
+image_lait = Image.PACMAN
+image_temperature = Image('00055:'
+                          '99955:'
+                          '90900:'
+                          '90900:'
+                          '99900')
 
-images_lait = [image_plus, image_moins, image_zero, image_regarder, "H"]
-messages_lait = ["Ajouter du lait", "Supprimer la dernière dose ajouté", "Reset la consommation", "Voir la consommation actuel", "Voir l'historique"]
+images_home = [image_statut_bebe, image_lait, image_temperature]
+messages_home = ["Check baby's state", "Open milk diary", "Check baby's temperature"]
+
+images_lait = [image_plus, image_moins, image_zero, image_regarder, image_history, image_retour]
+messages_lait = ["Add new dose of milk", "Remove last dose of milk", "Reset consommation", "See total consommation", "Chech history", "Go back"]
 
 def show_and_say(image, message):
     """Fonction qui permet d'affiche une image et de prononcer un texte
@@ -214,7 +233,7 @@ def show_and_say(image, message):
     display.show(image, wait=False)
     speech.say(message)
 
-def navigate_through(list_image, list_message):
+def navigate_through(list_image, list_message, sessional_password, milk_history):
     """Demande à l'utilisateur de choisir dans le menu et renvoi l'index de son choix
 
     Args:
@@ -247,6 +266,20 @@ def navigate_through(list_image, list_message):
             # Si index trop grand, retourne au début
             index %= len(list_image)
             show_and_say(list_image[index], list_message[index])
+
+        # Gère si recois un packet
+        packet = radio.receive()
+        if packet:
+            show_and_say(Image.ALL_CLOCKS, "Packet received")
+            # Unpack du packet
+            tlv = unpack_data(packet, sessional_password)
+            # Si c'est une demande pour le lait
+            if tlv[0] == "Ask milk history":
+                send_packet(sessional_password, "Give milk history", str(milk_history))
+            
+            index = 0
+            show_and_say(list_image[index], list_message[index])
+                
     return index
 
 def add_milk(history):
@@ -259,6 +292,7 @@ def add_milk(history):
         list: Historique du lait donné
     """
     milk = 100
+    sleep(500)
     while not pin_logo.is_touched():
         display.scroll(str(milk))
         if button_a.was_pressed():
@@ -310,3 +344,36 @@ def show_consommation(history):
         for element in history:
             total += element
     display.scroll(str(total))
+
+def milk_menu(milk_history, sessional_password):
+    while True:
+        index = navigate_through(images_lait, messages_lait, sessional_password, milk_history)
+        if index == 0:
+            milk_history = add_milk(milk_history)
+        elif index == 1:
+            milk_history = remove_last_milk(milk_history)
+        elif index == 2:
+            milk_history = reset_milk(milk_history)
+        elif index == 3:
+            show_consommation(milk_history)
+        elif index == 4:
+            show_history(milk_history)
+        elif index == 5:
+            return milk_history
+
+while not sessional_password:
+    hashed_response, sessional_password = respond_to_connexion_request(password)
+
+milk_history = []
+while True:
+    index = navigate_through(images_home, messages_home, sessional_password, milk_history)
+    if index == 0:
+        display.show(Image.CONFUSED)
+        sleep(2000)
+        continue
+    elif index == 1:
+        milk_history = milk_menu(milk_history, sessional_password)
+    elif index == 2:
+        display.show(Image.CONFUSED)
+        sleep(2000)
+        continue

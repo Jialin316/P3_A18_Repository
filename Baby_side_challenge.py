@@ -2,12 +2,14 @@ from microbit import *
 import radio
 import random
 import music
+import speech
 
 #Initialisation des variables du micro:bit
-radio.config(group=18, channel=2, address=0x11111111)
+radio.config(group=18, channel=2, address=0x11111111, length=251)
+radio.on()
 connexion_established = False
 password = "PISSEPENDOUILLE"
-sessional_password = password
+sessional_password = ""
 nonce_list = set()
 baby_state = 0
 #set_volume(100)
@@ -106,9 +108,7 @@ def send_packet(key, type, content):
         
         # Envoie du packet
         encrypted_packet = type_c + "|" + lenght_c + "|" + nonce_c + ":" + content_c
-        radio.on()
         radio.send(encrypted_packet)
-        radio.off()
     else:
         print("Error, no nonce available, please restard both be:bi")
 
@@ -186,7 +186,6 @@ def establish_connexion(key):
     new_password = str(hashed_result[-3:]) + key
 
     # Attends la réponse
-    radio.on()
     for _ in range(300000):
         packet = radio.receive()
         if packet:
@@ -200,8 +199,144 @@ def establish_connexion(key):
             return "Incorrect Type", ""
     return "No packet received", ""
 
+image_plus = Image('00900:'
+                   '00900:'
+                   '99999:'
+                   '00900:'
+                   '00900')
+image_moins = Image('00000:'
+                    '00000:'
+                    '99999:'
+                    '00000:'
+                    '00000')
+image_zero = "0"
+image_regarder = Image.SURPRISED
+image_history = Image('00900:'
+                      '00900:'
+                      '00999:'
+                      '00000:'
+                      '00000')
+image_retour = Image('00000:'
+                     '00009:'
+                     '09009:'
+                     '99999:'
+                     '09000')
+image_statut_bebe = Image.HAPPY
+image_lait = Image.PACMAN
+image_temperature = Image('00055:'
+                          '99955:'
+                          '90900:'
+                          '90900:'
+                          '99900')
+
+images_home = [image_statut_bebe, image_lait, image_temperature]
+messages_home = ["Check baby's state", "Open milk diary", "Check baby's temperature"]
+
+images_lait = [image_regarder, image_history, image_retour]
+messages_lait = ["See total consommation", "Chech history", "Go back"]
+
+def show_and_say(image, message):
+    """Fonction qui permet d'affiche une image et de prononcer un texte
+
+    Args:
+        image (Image): Objet Image
+        message (str): Texte qu'il prononcera
+    """
+    display.show(image, wait=False)
+    speech.say(message)
+
+def navigate_through(list_image, list_message):
+    """Demande à l'utilisateur de choisir dans le menu et renvoi l'index de son choix
+
+    Args:
+        list_image (list): Liste d'objet image
+        list_message (list): Liste des phrases à dire
+
+    Returns:
+        int: l'index du choix de l'utilisateur
+    """
+    # Commence à l'index 0
+    index = 0
+    show_and_say(list_image[index], list_message[index])
+    
+    while not pin_logo.is_touched():
+        # Vers la gauche si bouton a 
+        if button_a.was_pressed():
+            index -= 1
+            # Si négatif on remet à la fin
+            if index == -1:
+                index += len(list_image)
+            # Si index trop grand, retourne au début
+            index %= len(list_image)
+            show_and_say(list_image[index], list_message[index])
+        # Vers la droite si bouton b
+        elif button_b.was_pressed():
+            index += 1
+            # Si négatif on remet à la fin
+            if index == -1:
+                index += len(list_image)
+            # Si index trop grand, retourne au début
+            index %= len(list_image)
+            show_and_say(list_image[index], list_message[index])
+    return index
+
+def show_history(history):
+    if history:
+        for element in history:
+            display.scroll(str(element))
+    else:
+        show_and_say(Image.NO, "No history have been recorded")
+        sleep(500)
+
+def show_consommation(history):
+    total = 0
+    if history:
+        for element in history:
+            total += int(element)
+    display.scroll(str(total))
+
+def ask_milk(sessional_password):
+    
+    send_packet(sessional_password, "Ask milk history", "")
+    
+    # Reception du packet
+    for _ in range(100000):
+        packet = radio.receive()
+        if packet:
+            # Unpack du packet
+            tlv = unpack_data(packet, sessional_password)
+            if tlv[0] == "Give milk history":
+                string = tlv[2]
+                string = string.replace("[", "")
+                string = string.replace("]", "")
+                string = string.replace("'", "")
+                liste = string.split(", ")
+                return liste
+
+def baby_milk_menu(milk_history):
+    while True:
+        index = navigate_through(images_lait, messages_lait)
+        if index == 0:
+            show_consommation(milk_history)
+        elif index == 1:
+            show_history(milk_history)
+        elif index == 2:
+            return
+
+while not sessional_password:
+    if button_a.was_pressed():
+        hashed_response, sessional_password = establish_connexion(password)
 
 while True:
-    if button_a.was_pressed():
-        response, sessional_password = establish_connexion(password)
-        display.scroll(response + sessional_password)
+    index = navigate_through(images_home, messages_home)
+    if index == 0:
+        display.show(Image.CONFUSED)
+        sleep(2000)
+        continue
+    elif index == 1:
+        milk_history = ask_milk(sessional_password)
+        baby_milk_menu(milk_history)
+    elif index == 2:
+        display.show(Image.CONFUSED)
+        sleep(2000)
+        continue
