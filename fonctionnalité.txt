@@ -21,5 +21,5 @@ Liste des fonctionnalité à implémenter.
 	V- Historique des prises de lait
 
 - Capteur de température
-	X- Si la température monte trop haut ou baisse trop bas, alerte parents
+	V- Si la température monte trop haut ou baisse trop bas, alerte parents
 	X- Voir la température du be:bi enfant sur les deux be:bi
