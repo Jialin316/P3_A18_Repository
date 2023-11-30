@@ -12,6 +12,7 @@ password = "PISSEPENDOUILLE"
 sessional_password = ""
 nonce_list = set()
 baby_state = 0
+milk_history = []
 #set_volume(100)
 
 
@@ -253,7 +254,7 @@ def alerte(screen_txt:str, message:str):
         speech.say(message)
         sleep(2000)
 
-def navigate_through(list_image, list_message, sessional_password, milk_history):
+def navigate_through(list_image, list_message):
     """Demande à l'utilisateur de choisir dans le menu et renvoi l'index de son choix
 
     Args:
@@ -263,6 +264,8 @@ def navigate_through(list_image, list_message, sessional_password, milk_history)
     Returns:
         int: l'index du choix de l'utilisateur
     """
+    global sessional_password, milk_history
+    
     # Commence à l'index 0
     index = 0
     show_and_say(list_image[index], list_message[index])
@@ -379,9 +382,11 @@ def show_consommation(history):
             total += element
     display.scroll(str(total))
 
-def milk_menu(milk_history, sessional_password):
+def milk_menu():
+    global milk_history
+    
     while True:
-        index = navigate_through(images_lait, messages_lait, sessional_password, milk_history)
+        index = navigate_through(images_lait, messages_lait)
         if index == 0:
             milk_history = add_milk(milk_history)
         elif index == 1:
@@ -393,9 +398,10 @@ def milk_menu(milk_history, sessional_password):
         elif index == 4:
             show_history(milk_history)
         elif index == 5:
-            return milk_history
+            return
 
-def ask_temperature(sessional_password):
+def ask_temperature():
+    global sessional_password
     
     send_packet(sessional_password, "Ask temperature", "")
     
@@ -417,17 +423,17 @@ while not sessional_password:
     display.show("P")
     hashed_response, sessional_password = respond_to_connexion_request(password)
 
-milk_history = []
+
 while True:
-    index = navigate_through(images_home, messages_home, sessional_password, milk_history)
+    index = navigate_through(images_home, messages_home)
     if index == 0:
         display.show(Image.CONFUSED)
         sleep(2000)
         continue
     elif index == 1:
-        milk_history = milk_menu(milk_history, sessional_password)
+        milk_menu()
     elif index == 2:
-        temp = ask_temperature(sessional_password)
+        temp = ask_temperature()
         # Si aucune réponse, retourne en arrière
         if temp == "BACK":
             continue

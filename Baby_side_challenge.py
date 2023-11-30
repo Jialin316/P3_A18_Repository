@@ -14,6 +14,7 @@ nonce_list = set()
 baby_state = 0
 temp_too_hot = 30
 temp_too_cold = 10
+can_alert_temp = True
 #set_volume(100)
 
 
@@ -255,7 +256,7 @@ def show_and_say(image, message):
     display.show(image, wait=False)
     speech.say(message)
 
-def navigate_through(list_image, list_message, sessional_password="", temp_too_hot=temp_too_hot, temp_too_cold=temp_too_cold):
+def navigate_through(list_image, list_message):
     """Demande à l'utilisateur de choisir dans le menu et renvoi l'index de son choix
 
     Args:
@@ -265,6 +266,8 @@ def navigate_through(list_image, list_message, sessional_password="", temp_too_h
     Returns:
         int: l'index du choix de l'utilisateur
     """
+    global sessional_password, can_alert_temp, temp_too_cold, temp_too_hot
+    
     # Commence à l'index 0
     index = 0
     show_and_say(list_image[index], list_message[index])
@@ -291,10 +294,15 @@ def navigate_through(list_image, list_message, sessional_password="", temp_too_h
         
         # Si température trop basse ou élevé
         temp = temperature()
-        if temp > temp_too_hot:
+        if temp >= temp_too_hot and can_alert_temp:
             send_packet(sessional_password, "Temp too hot", str(temp))
-        elif temp < temp_too_cold:
+            can_alert_temp = False
+        elif temp <= temp_too_cold and can_alert_temp:
             send_packet(sessional_password, "Temp too cold", str(temp))
+            can_alert_temp = False
+        # Si température reviens dans la normal alors on peut renvoyer des alarmes
+        elif temp > temp_too_cold and temp < temp_too_hot:
+            can_alert_temp = True
         
         # Si recois un packet
         packet = radio.receive()
@@ -328,7 +336,8 @@ def show_consommation(history):
             total += int(element)
     display.scroll(str(total))
 
-def ask_milk(sessional_password):
+def ask_milk():
+    global sessional_password
     
     send_packet(sessional_password, "Ask milk history", "")
     
@@ -352,9 +361,11 @@ def ask_milk(sessional_password):
     show_and_say(Image.NO, "No response")
     return "BACK"
 
-def baby_milk_menu(milk_history, sessional_password):
+def baby_milk_menu():
+    global milk_history
+    
     while True:
-        index = navigate_through(images_lait, messages_lait, sessional_password)
+        index = navigate_through(images_lait, messages_lait)
         if index == 0:
             show_consommation(milk_history)
         elif index == 1:
@@ -362,9 +373,10 @@ def baby_milk_menu(milk_history, sessional_password):
         elif index == 2:
             return
 
-def baby_temp_menu(sessional_password):
+def baby_temp_menu():
+    global sessional_password
     while True:
-        index = navigate_through(images_temperature, messages_temperature, sessional_password)
+        index = navigate_through(images_temperature, messages_temperature)
         # Affiche la temperature
         if index == 0:
             temp = temperature()
@@ -387,20 +399,23 @@ while not sessional_password:
 # Boucle principale
 while True:
     # Affichage du menu home
-    index = navigate_through(images_home, messages_home, sessional_password)
+    index = navigate_through(images_home, messages_home)
+    
     # Si choix = Etat du bébé
     if index == 0:
         display.show(Image.CONFUSED)
         sleep(2000)
         continue
+
     # Si choix = Consommation de lait
     elif index == 1:
-        milk_history = ask_milk(sessional_password)
+        milk_history = ask_milk()
         # Si aucune réponse, retourne en arrière
         if milk_history == "BACK":
             continue
         # Affiche du menu pour le lait
-        baby_milk_menu(milk_history, sessional_password)
+        baby_milk_menu()
+
     # Si choix = Capteur de température
     elif index == 2:
-        baby_temp_menu(sessional_password)
+        baby_temp_menu()
