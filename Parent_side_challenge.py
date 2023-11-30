@@ -179,11 +179,13 @@ def respond_to_connexion_request(key):
             list_message = unpack_data(packet, key)
             # Si type correspondant
             if list_message[0] == "0x01":
+                show_and_say(Image.ALL_CLOCKS, "Trying")
                 # Retourne le hash de la réponse et le nouveau mot de passe
                 hashed_result = calculate_challenge_response(list_message[2])
                 new_password = str(hashed_result[-3:]) + key
                 sleep(1000)
                 send_packet(new_password, "0x01", hashed_result)
+                show_and_say(Image.YES, "Connected")
                 return hashed_result, new_password
             return "Incorrect Type", ""
 
@@ -213,9 +215,14 @@ image_statut_bebe = Image.HAPPY
 image_lait = Image.PACMAN
 image_temperature = Image('00055:'
                           '99955:'
-                          '90900:'
-                          '90900:'
+                          '90000:'
+                          '90000:'
                           '99900')
+image_danger = Image('00900:'
+                     '00900:'
+                     '00900:'
+                     '00000:'
+                     '00900')
 
 images_home = [image_statut_bebe, image_lait, image_temperature]
 messages_home = ["Check baby's state", "Open milk diary", "Check baby's temperature"]
@@ -232,6 +239,19 @@ def show_and_say(image, message):
     """
     display.show(image, wait=False)
     speech.say(message)
+
+def alerte(screen_txt:str, message:str):
+    # Tant que pas d'action
+    while not (pin_logo.is_touched() or button_a.was_pressed() or button_b.was_pressed()):
+        # Affiche et prononce un danger
+        display.show(image_danger, wait=False)
+        speech.say("WARNING!!, WARNING!!")
+        display.clear()
+        sleep(500)
+        # Affiche le contenu du danger
+        display.scroll(screen_txt, wait=False)
+        speech.say(message)
+        sleep(2000)
 
 def navigate_through(list_image, list_message, sessional_password, milk_history):
     """Demande à l'utilisateur de choisir dans le menu et renvoi l'index de son choix
@@ -273,13 +293,26 @@ def navigate_through(list_image, list_message, sessional_password, milk_history)
             show_and_say(Image.ALL_CLOCKS, "Packet received")
             # Unpack du packet
             tlv = unpack_data(packet, sessional_password)
+            packet = ""
+            
             # Si c'est une demande pour le lait
             if tlv[0] == "Ask milk history":
                 send_packet(sessional_password, "Give milk history", str(milk_history))
             
+            # Si c'est un message de température
+            elif tlv[0] == "Give temperature":
+                temp = tlv[2]
+                display.scroll(temp, wait=False)
+                speech.say("The temperature here is " + temp + "degrees Celcius")
+            
+            # Si alerte temperature
+            elif tlv[0] == "Temp too hot":
+                temp = tlv[2]
+                
             index = 0
             show_and_say(list_image[index], list_message[index])
-                
+
+        
     return index
 
 def add_milk(history):
@@ -292,9 +325,10 @@ def add_milk(history):
         list: Historique du lait donné
     """
     milk = 100
-    sleep(500)
-    while not pin_logo.is_touched():
+    count = 0
+    while (not pin_logo.is_touched()) or (count == 0):
         display.scroll(str(milk))
+        count = 1
         if button_a.was_pressed():
             milk -= button_a.get_presses()
             if milk < 0:
@@ -361,7 +395,26 @@ def milk_menu(milk_history, sessional_password):
         elif index == 5:
             return milk_history
 
+def ask_temperature(sessional_password):
+    
+    send_packet(sessional_password, "Ask temperature", "")
+    
+    # Reception du packet
+    for _ in range(100000):
+        packet = radio.receive()
+        if packet:
+            # Unpack du packet
+            tlv = unpack_data(packet, sessional_password)
+            if tlv[0] == "Give temperature":
+                temp = tlv[2]
+                return temp
+    
+    # Si aucune réponse
+    show_and_say(Image.NO, "No response")
+    return "BACK"
+
 while not sessional_password:
+    display.show("P")
     hashed_response, sessional_password = respond_to_connexion_request(password)
 
 milk_history = []
@@ -374,6 +427,9 @@ while True:
     elif index == 1:
         milk_history = milk_menu(milk_history, sessional_password)
     elif index == 2:
-        display.show(Image.CONFUSED)
-        sleep(2000)
-        continue
+        temp = ask_temperature(sessional_password)
+        # Si aucune réponse, retourne en arrière
+        if temp == "BACK":
+            continue
+        display.scroll(str(temp), wait=False)
+        speech.say("The temperature of the baby is " + str(temp) + " degrees Celcius")
