@@ -7,15 +7,45 @@ import speech
 #Initialisation des variables du micro:bit
 radio.config(group=18, channel=2, address=0x11111111, length=251)
 radio.on()
-connexion_established = False
 password = "PISSEPENDOUILLE"
 sessional_password = ""
 nonce_list = set()
 baby_state = 0
-temp_too_hot = 30
-temp_too_cold = 10
+temp_too_hot = 32
+temp_too_cold = 18
 can_alert_temp = True
-#set_volume(100)
+set_volume(100)
+
+image_menu_statut = Image.HAPPY
+image_menu_lait = Image.PACMAN
+image_menu_temperature = Image('00055:'
+                               '99955:'
+                               '90000:'
+                               '90000:'
+                               '99900')
+image_regarder = Image.SURPRISED
+image_history = Image('00900:'
+                      '00900:'
+                      '00999:'
+                      '00000:'
+                      '00000')
+image_retour = Image('00000:'
+                     '00009:'
+                     '09009:'
+                     '99999:'
+                     '09000')
+
+images_home = [image_menu_statut, image_menu_lait, image_menu_temperature]
+messages_home = ["Check baby's state", "Open milk diary", "Check baby's temperature"]
+
+images_state = [Image.FABULOUS, image_retour]
+messages_state = ["Activate sleep mode", "Go back"]
+
+images_lait = [image_regarder, image_history, image_retour]
+messages_lait = ["See total consommation", "Chech history", "Go back"]
+
+images_temperature = ["1", "2", image_retour]
+messages_temperature = ["Check temperature", "Send temperature to parents", "Go back"]
 
 
 def generate_nonce(a=1, b=100000):
@@ -185,7 +215,7 @@ def establish_connexion(key):
     # Envoie du challenge crypté
     send_packet(key, "0x01", challenge)
     
-    # Retourne le hash de la réponse
+    # Calcul le hash de la réponse
     hashed_result = calculate_challenge_response(challenge)
     new_password = str(hashed_result[-3:]) + key
 
@@ -207,44 +237,6 @@ def establish_connexion(key):
     show_and_say(Image.NO, "No response")
     return "No packet received", ""
 
-image_plus = Image('00900:'
-                   '00900:'
-                   '99999:'
-                   '00900:'
-                   '00900')
-image_moins = Image('00000:'
-                    '00000:'
-                    '99999:'
-                    '00000:'
-                    '00000')
-image_zero = "0"
-image_regarder = Image.SURPRISED
-image_history = Image('00900:'
-                      '00900:'
-                      '00999:'
-                      '00000:'
-                      '00000')
-image_retour = Image('00000:'
-                     '00009:'
-                     '09009:'
-                     '99999:'
-                     '09000')
-image_statut_bebe = Image.HAPPY
-image_lait = Image.PACMAN
-image_temperature = Image('00055:'
-                          '99955:'
-                          '90000:'
-                          '90000:'
-                          '99900')
-
-images_home = [image_statut_bebe, image_lait, image_temperature]
-messages_home = ["Check baby's state", "Open milk diary", "Check baby's temperature"]
-
-images_lait = [image_regarder, image_history, image_retour]
-messages_lait = ["See total consommation", "Chech history", "Go back"]
-
-images_temperature = ["1", "2", image_retour]
-messages_temperature = ["Check temperature", "Send temperature to parents", "Go back"]
 
 def show_and_say(image, message):
     """Fonction qui permet d'affiche une image et de prononcer un texte
@@ -256,6 +248,43 @@ def show_and_say(image, message):
     display.show(image, wait=False)
     speech.say(message)
 
+def check_alerte():
+    """Vérifie si il y'a des alertes à envoyer"""
+    global sessional_password, can_alert_temp, temp_too_cold, temp_too_hot
+    
+    # Si température trop basse ou élevé
+    temp = temperature()
+    if temp >= temp_too_hot and can_alert_temp:
+        send_packet(sessional_password, "Temp too hot", str(temp))
+        can_alert_temp = False
+        
+    elif temp <= temp_too_cold and can_alert_temp:
+        send_packet(sessional_password, "Temp too cold", str(temp))
+        can_alert_temp = False
+        
+    # Si température reviens dans la normal alors on peut renvoyer des alarmes
+    elif temp > temp_too_cold+1 and temp < temp_too_hot-1:
+        can_alert_temp = True
+
+def handle_packet(packet):
+    # Unpack du packet
+    show_and_say(Image.ALL_CLOCKS, "Packet received")
+    tlv = unpack_data(packet, sessional_password)
+            
+    # Si c'est une demande pour la temperature
+    if tlv[0] == "Ask temperature":
+        send_packet(sessional_password, "Give temperature", str(temperature()))
+        show_and_say(Image.YES, "Temperature sent")
+
+    # Si demande de l'état du bébé
+    if tlv[0] == "Ask state":
+        send_packet(sessional_password, "Give state", str(get_state()))
+        show_and_say(Image.YES, "State sent")
+    
+    # Si demande de musique     
+    if tlv[0] == "Play musique":
+        music.play(['C', 'G', 'E', 'C', 'A', 'F#', 'C', 'G', 'E', 'C', 'A', 'F#', 'C', 'G', 'E', 'C', 'A', 'F#', 'C', 'G', 'E', 'C', 'A', 'F#', 'B', 'D', 'G', 'A#', 'C#', 'G', 'A', 'C', 'G', 'D', 'C', 'F#', 'C', 'G', 'E', 'C', 'A', 'F#', 'C', 'G', 'E', 'C', 'A', 'F#', 'B', 'D', 'G', 'A#', 'C#', 'G', 'A', 'C', 'G', 'D', 'C', 'F#', 'F', 'C', 'E', 'E', 'B', 'D', 'D', 'A', 'C', 'C', 'G', 'B', 'F', 'C', 'E', 'E', 'B', 'D', 'D#', 'A#', 'C#', 'D', 'A', 'C', 'G', 'D', 'C', 'G', 'E', 'C', 'A', 'F#', 'C', 'G', 'E', 'C', 'A', 'F#', 'B', 'D', 'G', 'A#', 'C#', 'G', 'A', 'C', 'G', 'D', 'C', 'F#', 'G', 'G'])
+
 def navigate_through(list_image, list_message):
     """Demande à l'utilisateur de choisir dans le menu et renvoi l'index de son choix
 
@@ -266,8 +295,8 @@ def navigate_through(list_image, list_message):
     Returns:
         int: l'index du choix de l'utilisateur
     """
-    global sessional_password, can_alert_temp, temp_too_cold, temp_too_hot
-    
+    global sessional_password
+
     # Commence à l'index 0
     index = 0
     show_and_say(list_image[index], list_message[index])
@@ -292,55 +321,23 @@ def navigate_through(list_image, list_message):
             index %= len(list_image)
             show_and_say(list_image[index], list_message[index])
         
-        # Si température trop basse ou élevé
-        temp = temperature()
-        if temp >= temp_too_hot and can_alert_temp:
-            send_packet(sessional_password, "Temp too hot", str(temp))
-            can_alert_temp = False
-        elif temp <= temp_too_cold and can_alert_temp:
-            send_packet(sessional_password, "Temp too cold", str(temp))
-            can_alert_temp = False
-        # Si température reviens dans la normal alors on peut renvoyer des alarmes
-        elif temp > temp_too_cold and temp < temp_too_hot:
-            can_alert_temp = True
+        # Vérifie si il y'a des alertes à envoyer
+        check_alerte()
         
         # Si recois un packet
         packet = radio.receive()
         if packet:
-            show_and_say(Image.ALL_CLOCKS, "Packet received")
-            # Unpack du packet
-            tlv = unpack_data(packet, sessional_password)
-            # Si c'est une demande pour la temperature
-            if tlv[0] == "Ask temperature":
-                send_packet(sessional_password, "Give temperature", str(temperature()))
-                show_and_say(Image.YES, "Temperature sent")
-
-            # Retourne au début
+            handle_packet(packet)
             index = 0
             show_and_say(list_image[index], list_message[index])
             
     return index
 
-def show_history(history):
-    if history:
-        for element in history:
-            display.scroll(str(element))
-    else:
-        show_and_say(Image.NO, "No history have been recorded")
-        sleep(500)
-
-def show_consommation(history):
-    total = 0
-    if history:
-        for element in history:
-            total += int(element)
-    display.scroll(str(total))
-
 def ask_milk():
     global sessional_password
-    
+        
     send_packet(sessional_password, "Ask milk history", "")
-    
+        
     # Reception du packet
     for _ in range(100000):
         packet = radio.receive()
@@ -363,6 +360,19 @@ def ask_milk():
 
 def baby_milk_menu():
     global milk_history
+    def show_history(history):
+        if history:
+            for element in history:
+                display.scroll(str(element))
+        else:
+            show_and_say(Image.NO, "No history have been recorded")
+            sleep(500)
+    def show_consommation(history):
+        total = 0
+        if history:
+            for element in history:
+                total += int(element)
+        display.scroll(str(total))
     
     while True:
         index = navigate_through(images_lait, messages_lait)
@@ -390,9 +400,63 @@ def baby_temp_menu():
         elif index == 2:
             return
 
+def get_state(number_of_measures=2000, time=4000):
+    """Retourne l'état du bébé en fonction de son accélération sur une duréé de 3sec
+
+    Args:
+        number_of_measure (int, optional): Nombre de mesure que le microbit  prendra. Defaults to 2000.
+        time (int, optional): Période de temps (en ms) sur laquelle le microbit prendra les mesureas. Defaults to 4000.
+    """
+    # Calcule l'accélération moyenne 
+    total_acceleration = 0 
+    for _ in range(number_of_measures):
+        total_acceleration += abs(int(accelerometer.get_strength() - 1000))
+        sleep(time/number_of_measures)
+    total_acceleration = total_acceleration //  number_of_measures
+    
+    if total_acceleration < 75:
+        return 0
+    elif total_acceleration < 200:
+        return 1
+    else:
+        return 2
+
+def baby_state_menu():
+    global sessional_password
+    def put_to_sleep():
+        show_and_say(Image.YES, "Sleep mode activated")
+        display.show(Image('00000:'
+                           '33033:'
+                           '00000:'
+                           '03330:'
+                           '00000'))
+        # Pendant son sommeil
+        radio.off()
+        while not (button_a.was_pressed() or button_b.was_pressed()):
+            # Mouvement
+            state = get_state()
+            if state == 2:
+                send_packet(sessional_password, "Too agitated", str(state))
+            elif state == 1:
+                send_packet(sessional_password, "Agitated", str(state))
+                    
+            # Son
+           
+        radio.on()
+    
+    while True:
+        index = navigate_through(images_state, messages_state)
+        # Activation du mode sommeil
+        if index == 0:
+            put_to_sleep()
+        # Retour en arrière
+        elif index == 1:
+            return
+
+
 # Tente un connexion si appuie sur bouton a
+display.show("B")
 while not sessional_password:
-    display.show("B")
     if button_a.was_pressed():
         hashed_response, sessional_password = establish_connexion(password)
 
@@ -403,9 +467,7 @@ while True:
     
     # Si choix = Etat du bébé
     if index == 0:
-        display.show(Image.CONFUSED)
-        sleep(2000)
-        continue
+        baby_state_menu()
 
     # Si choix = Consommation de lait
     elif index == 1:

@@ -7,13 +7,60 @@ import speech
 #Initialisation des variables du micro:bit
 radio.config(group=18, channel=2, address=0x11111111, length=251)
 radio.on()
-connexion_established = False
 password = "PISSEPENDOUILLE"
 sessional_password = ""
 nonce_list = set()
-baby_state = 0
 milk_history = []
-#set_volume(100)
+set_volume(100)
+
+image_menu_statut = Image.HAPPY
+image_menu_lait = Image.PACMAN
+image_menu_temperature = Image('00055:'
+                          '99955:'
+                          '90000:'
+                          '90000:'
+                          '99900')
+image_plus = Image('00900:'
+                   '00900:'
+                   '99999:'
+                   '00900:'
+                   '00900')
+image_moins = Image('00000:'
+                    '00000:'
+                    '99999:'
+                    '00000:'
+                    '00000')
+image_zero = "0"
+image_regarder = Image.SURPRISED
+image_history = Image('00900:'
+                      '00900:'
+                      '00999:'
+                      '00000:'
+                      '00000')
+image_retour = Image('00000:'
+                     '00009:'
+                     '09009:'
+                     '99999:'
+                     '09000')
+image_danger = Image('00900:'
+                     '00900:'
+                     '00900:'
+                     '00000:'
+                     '00900')
+image_musique = Image('00990:'
+                      '00909:'
+                      '00900:'
+                      '09900:'
+                      '09900')
+
+images_home = [image_menu_statut, image_menu_lait, image_menu_temperature]
+messages_home = ["Check baby's state", "Open milk diary", "Check baby's temperature"]
+
+images_lait = [image_plus, image_moins, image_zero, image_regarder, image_history, image_retour]
+messages_lait = ["Add new dose of milk", "Remove last dose of milk", "Reset consommation", "See total consommation", "Chech history", "Go back"]
+
+images_etat = [Image.FABULOUS, image_musique, image_retour]
+messages_etat = ["Check baby's state", "Play musique", "Go back"]
 
 
 def generate_nonce(a=1, b=1000):
@@ -190,48 +237,8 @@ def respond_to_connexion_request(key):
                 return hashed_result, new_password
             return "Incorrect Type", ""
 
-image_plus = Image('00900:'
-                   '00900:'
-                   '99999:'
-                   '00900:'
-                   '00900')
-image_moins = Image('00000:'
-                    '00000:'
-                    '99999:'
-                    '00000:'
-                    '00000')
-image_zero = "0"
-image_regarder = Image.SURPRISED
-image_history = Image('00900:'
-                      '00900:'
-                      '00999:'
-                      '00000:'
-                      '00000')
-image_retour = Image('00000:'
-                     '00009:'
-                     '09009:'
-                     '99999:'
-                     '09000')
-image_statut_bebe = Image.HAPPY
-image_lait = Image.PACMAN
-image_temperature = Image('00055:'
-                          '99955:'
-                          '90000:'
-                          '90000:'
-                          '99900')
-image_danger = Image('00900:'
-                     '00900:'
-                     '00900:'
-                     '00000:'
-                     '00900')
 
-images_home = [image_statut_bebe, image_lait, image_temperature]
-messages_home = ["Check baby's state", "Open milk diary", "Check baby's temperature"]
-
-images_lait = [image_plus, image_moins, image_zero, image_regarder, image_history, image_retour]
-messages_lait = ["Add new dose of milk", "Remove last dose of milk", "Reset consommation", "See total consommation", "Chech history", "Go back"]
-
-def show_and_say(image, message):
+def show_and_say(image, message:str):
     """Fonction qui permet d'affiche une image et de prononcer un texte
 
     Args:
@@ -253,6 +260,66 @@ def alerte(screen_txt:str, message:str):
         display.scroll(screen_txt, wait=False)
         speech.say(message)
         sleep(2000)
+
+def ask(subject:str):
+    global sessional_password
+    
+    display.show(Image.ALL_CLOCKS, wait=False)
+    # Demande en fonction du sujet
+    if subject == "Temperature":
+        send_packet(sessional_password, "Ask temperature", "")
+    elif subject == "State":
+        send_packet(sessional_password, "Ask state", "")
+        
+    # Reception du packet
+    for _ in range(100):
+        packet = radio.receive()
+        if packet:
+            # Unpack du packet
+            tlv = unpack_data(packet, sessional_password)
+            # Vérification du type
+            if tlv[0] == "Give temperature":
+                return tlv[2]
+            elif tlv[0] == "Give state":
+                return tlv[2]
+        sleep(100)
+    
+    # Si aucune réponse
+    show_and_say(Image.NO, "No response")
+    return "BACK"
+
+def handle_packet(packet):
+    global sessional_password
+    
+    # Unpack du packet
+    show_and_say(Image.ALL_CLOCKS, "Packet received")
+    tlv = unpack_data(packet, sessional_password)
+            
+    # Si c'est une demande pour le lait
+    if tlv[0] == "Ask milk history":
+        send_packet(sessional_password, "Give milk history", str(milk_history))
+            
+    # Si c'est un message de température
+    elif tlv[0] == "Give temperature":
+        temp = tlv[2]
+        display.scroll(temp, wait=False)
+        speech.say("The temperature here is " + temp + "degrees Celcius")
+            
+    # Si alerte temperature
+    elif tlv[0] == "Temp too hot":
+        temp = tlv[2]
+        alerte(str(temp), "Temp too hot")
+                
+    elif tlv[0] == "Temp too cold":
+        temp = tlv[2]
+        alerte(str(temp), "Temp too cold")
+                
+    # Si alerte endormissement
+    elif tlv[0] == "Too agitated" or tlv[0] == "Agitated":
+        radio.off()
+        state = tlv[2]
+        alerte(str(state), "Baby is awake")
+        radio.on()
 
 def navigate_through(list_image, list_message):
     """Demande à l'utilisateur de choisir dans le menu et renvoi l'index de son choix
@@ -277,15 +344,10 @@ def navigate_through(list_image, list_message):
             # Si négatif on remet à la fin
             if index == -1:
                 index += len(list_image)
-            # Si index trop grand, retourne au début
-            index %= len(list_image)
             show_and_say(list_image[index], list_message[index])
         # Vers la droite si bouton b
         elif button_b.was_pressed():
             index += 1
-            # Si négatif on remet à la fin
-            if index == -1:
-                index += len(list_image)
             # Si index trop grand, retourne au début
             index %= len(list_image)
             show_and_say(list_image[index], list_message[index])
@@ -293,98 +355,72 @@ def navigate_through(list_image, list_message):
         # Gère si recois un packet
         packet = radio.receive()
         if packet:
-            show_and_say(Image.ALL_CLOCKS, "Packet received")
-            # Unpack du packet
-            tlv = unpack_data(packet, sessional_password)
-            packet = ""
-            
-            # Si c'est une demande pour le lait
-            if tlv[0] == "Ask milk history":
-                send_packet(sessional_password, "Give milk history", str(milk_history))
-            
-            # Si c'est un message de température
-            elif tlv[0] == "Give temperature":
-                temp = tlv[2]
-                display.scroll(temp, wait=False)
-                speech.say("The temperature here is " + temp + "degrees Celcius")
-            
-            # Si alerte temperature
-            elif tlv[0] == "Temp too hot":
-                temp = tlv[2]
-                
+            handle_packet(packet)
             index = 0
             show_and_say(list_image[index], list_message[index])
 
         
     return index
 
-def add_milk(history):
-    """Demande la quantité de lait donné au bébé (en mL), et retourne cette quantité
-
-    Args:
-        history (list): Liste de int avec la quantité de lait donné à chaque fois
-
-    Returns:
-        list: Historique du lait donné
-    """
-    milk = 100
-    count = 0
-    while (not pin_logo.is_touched()) or (count == 0):
-        display.scroll(str(milk))
-        count = 1
-        if button_a.was_pressed():
-            milk -= button_a.get_presses()
-            if milk < 0:
-                milk = 0
-        elif button_b.was_pressed():
-            milk += button_b.get_presses()
-    history.append(milk)
-    show_and_say(Image.YES, "You have added " + str(milk) + "mililiter of milk")
-    sleep(500)
-    return history
-
-def remove_last_milk(history):
-    """Supprime la dernière dose de lait ajouté
-
-    Args:
-        history (list): Liste de int avec la quantité de lait donné à chaque fois
-
-    Returns:
-        list: Historique du lait donné (après avoir retiré la dernière dose)
-    """
-    if history:
-        history.pop()
-        show_and_say(Image.YES, "Last milk has been removed")
-        sleep(500)
-        return history
-    else:
-        show_and_say(Image.NO, "No history have been recorded")
-        sleep(500)
-
-def reset_milk(history):
-    history.clear()
-    show_and_say(Image.YES, "The history has been reseted")
-    sleep(500)
-    return history
-
-def show_history(history):
-    if history:
-        for element in history:
-            display.scroll(str(element))
-    else:
-        show_and_say(Image.NO, "No history have been recorded")
-        sleep(500)
-
-def show_consommation(history):
-    total = 0
-    if history:
-        for element in history:
-            total += element
-    display.scroll(str(total))
-
 def milk_menu():
     global milk_history
-    
+    def add_milk(history):
+        """Demande la quantité de lait donné au bébé (en mL), et l'ajoute à l'historique
+
+        Args:
+            history (list): Liste de int avec la quantité de lait donné à chaque fois
+
+        Returns:
+            list: Historique du lait donné
+        """
+        milk = 100
+        count = 0
+        while (not pin_logo.is_touched()) or (count == 0):
+            display.scroll(str(milk))
+            count = 1
+            # -1
+            if button_a.was_pressed():
+                milk -= button_a.get_presses()
+                # Si négatif
+                if milk < 0:
+                    milk = 0
+            # +1
+            elif button_b.was_pressed():
+                milk += button_b.get_presses()
+        # Ajoute la nouvelle dose dans l'historique
+        history.append(milk)
+        
+        show_and_say(Image.YES, "You have added " + str(milk) + "mililiter of milk")
+        return history
+    def remove_last_milk(history):
+        """Supprime la dernière dose de lait ajouté
+
+        Args:
+            history (list): Liste de int avec la quantité de lait donné à chaque fois
+
+        Returns:
+            list: Historique du lait donné (après avoir retiré la dernière dose)
+        """
+        if history:
+            history.pop()
+            show_and_say(Image.YES, "Last milk has been removed")
+            return history
+        else:
+            show_and_say(Image.NO, "No history have been recorded")
+    def reset_milk(history):
+        history.clear()
+        show_and_say(Image.YES, "The history has been reseted")
+        return history
+    def show_history(history):
+        if history:
+            for element in history:
+                display.scroll(str(element))
+        else:
+            show_and_say(Image.NO, "No history have been recorded")
+    def show_consommation(history):
+        total = sum(history)
+        display.scroll(str(total))
+
     while True:
         index = navigate_through(images_lait, messages_lait)
         if index == 0:
@@ -400,42 +436,48 @@ def milk_menu():
         elif index == 5:
             return
 
-def ask_temperature():
-    global sessional_password
-    
-    send_packet(sessional_password, "Ask temperature", "")
-    
-    # Reception du packet
-    for _ in range(100000):
-        packet = radio.receive()
-        if packet:
-            # Unpack du packet
-            tlv = unpack_data(packet, sessional_password)
-            if tlv[0] == "Give temperature":
-                temp = tlv[2]
-                return temp
-    
-    # Si aucune réponse
-    show_and_say(Image.NO, "No response")
-    return "BACK"
+def state_menu():
+    while True:
+        index = navigate_through(images_etat, messages_etat)
+        # Si choix de demander l'état du bébé
+        if index == 0:
+            state = ask("State")
+            if state == "BACK":
+                return
+            display.scroll(state)
+        # Si choix jouer de la musique
+        elif index == 1:
+            send_packet(sessional_password, "Play musique", "")
+            show_and_say(Image.YES, "Packet sent")
+        # Si retour en arrière
+        elif index == 2:
+            return
 
+
+# Attend une connexion
 while not sessional_password:
     display.show("P")
     hashed_response, sessional_password = respond_to_connexion_request(password)
 
-
+# Boucle principale
 while True:
+    # Affichage du menu home
     index = navigate_through(images_home, messages_home)
+    
+    # Si choix = Etat du bébé
     if index == 0:
-        display.show(Image.CONFUSED)
-        sleep(2000)
-        continue
+        state_menu()
+        
+    # Si choix = Consommation de lait
     elif index == 1:
         milk_menu()
+        
+    # Si choix = Capteur de température
     elif index == 2:
-        temp = ask_temperature()
+        temp = ask("Temperature")
         # Si aucune réponse, retourne en arrière
         if temp == "BACK":
             continue
+        # Affiche la température
         display.scroll(str(temp), wait=False)
         speech.say("The temperature of the baby is " + str(temp) + " degrees Celcius")

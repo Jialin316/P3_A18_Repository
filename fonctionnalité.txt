@@ -10,7 +10,7 @@ Liste des fonctionnalité à implémenter.
 	V- Fonction permettant de changer d'action en appuyant sur le bouton a ou b et confirmer le choix en appuyant sur le bouton tactile
 
 - Surveillance état du bébé:
-	X- Si le bébé se déplace de 1m du "point de couchage", alerte parents
+	V- Si le bébé bouge trop, alerte parents
 	X- Si le bébé fait un bruit fort, alerte parents
 
 - Suivis du lait:
