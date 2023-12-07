@@ -11,7 +11,7 @@ Liste des fonctionnalité à implémenter.
 
 - Surveillance état du bébé:
 	V- Si le bébé bouge trop, alerte parents
-	X- Si le bébé fait un bruit fort, alerte parents
+	V- Si le bébé fait un bruit fort, alerte parents
 
 - Suivis du lait:
 	V- Ajouter une dose

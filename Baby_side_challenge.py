@@ -14,6 +14,8 @@ baby_state = 0
 temp_too_hot = 32
 temp_too_cold = 18
 can_alert_temp = True
+sound_too_loud = 60
+lullaby = ['C', 'G', 'E', 'C', 'A', 'F#', 'C', 'G', 'E', 'C', 'A', 'F#', 'C', 'G', 'E', 'C', 'A', 'F#', 'C', 'G', 'E', 'C', 'A', 'F#', 'B', 'D', 'G', 'A#', 'C#', 'G', 'A', 'C', 'G', 'D', 'C', 'F#', 'C', 'G', 'E', 'C', 'A', 'F#', 'C', 'G', 'E', 'C', 'A', 'F#', 'B', 'D', 'G', 'A#', 'C#', 'G', 'A', 'C', 'G', 'D', 'C', 'F#', 'F', 'C', 'E', 'E', 'B', 'D', 'D', 'A', 'C', 'C', 'G', 'B', 'F', 'C', 'E', 'E', 'B', 'D', 'D#', 'A#', 'C#', 'D', 'A', 'C', 'G', 'D', 'C', 'G', 'E', 'C', 'A', 'F#', 'C', 'G', 'E', 'C', 'A', 'F#', 'B', 'D', 'G', 'A#', 'C#', 'G', 'A', 'C', 'G', 'D', 'C', 'F#', 'G', 'G']
 set_volume(100)
 
 image_menu_statut = Image.HAPPY
@@ -199,7 +201,7 @@ def establish_connexion(key):
     """
     Etablissement de la connexion avec l'autre micro:bit
     Si il y a une erreur, la valeur de retour est vide
-    Génère une série de 4 chiffres séparé par | et envoie cette série chiffré à l'autre be:bi
+    Génère une série de 4 chiffres séparé par une virgule et envoie cette série chiffré à l'autre be:bi
 
     :param (str) key:                  Clé de chiffrement
 	:return (srt)challenge_response:   Réponse au challenge
@@ -238,15 +240,16 @@ def establish_connexion(key):
     return "No packet received", ""
 
 
-def show_and_say(image, message):
+def show_and_say(image, message, show=True):
     """Fonction qui permet d'affiche une image et de prononcer un texte
 
     Args:
         image (Image): Objet Image
         message (str): Texte qu'il prononcera
     """
-    display.show(image, wait=False)
-    speech.say(message)
+    if show:
+        display.show(image, wait=False)
+        speech.say(message)
 
 def check_alerte():
     """Vérifie si il y'a des alertes à envoyer"""
@@ -266,24 +269,28 @@ def check_alerte():
     elif temp > temp_too_cold+1 and temp < temp_too_hot-1:
         can_alert_temp = True
 
-def handle_packet(packet):
+def handle_packet(packet, show=True):
     # Unpack du packet
-    show_and_say(Image.ALL_CLOCKS, "Packet received")
+    show_and_say(Image.ALL_CLOCKS, "Packet received", show)
     tlv = unpack_data(packet, sessional_password)
             
     # Si c'est une demande pour la temperature
     if tlv[0] == "Ask temperature":
         send_packet(sessional_password, "Give temperature", str(temperature()))
-        show_and_say(Image.YES, "Temperature sent")
+        show_and_say(Image.YES, "Temperature sent", show)
 
     # Si demande de l'état du bébé
-    if tlv[0] == "Ask state":
+    elif tlv[0] == "Ask state":
         send_packet(sessional_password, "Give state", str(get_state()))
-        show_and_say(Image.YES, "State sent")
+        show_and_say(Image.YES, "State sent", show)
+    
+    # Si demande le niveau sonore
+    elif tlv[0] == "Ask sound level":
+        send_packet(sessional_password, "Give sound level", str(get_sound()))
     
     # Si demande de musique     
-    if tlv[0] == "Play musique":
-        music.play(['C', 'G', 'E', 'C', 'A', 'F#', 'C', 'G', 'E', 'C', 'A', 'F#', 'C', 'G', 'E', 'C', 'A', 'F#', 'C', 'G', 'E', 'C', 'A', 'F#', 'B', 'D', 'G', 'A#', 'C#', 'G', 'A', 'C', 'G', 'D', 'C', 'F#', 'C', 'G', 'E', 'C', 'A', 'F#', 'C', 'G', 'E', 'C', 'A', 'F#', 'B', 'D', 'G', 'A#', 'C#', 'G', 'A', 'C', 'G', 'D', 'C', 'F#', 'F', 'C', 'E', 'E', 'B', 'D', 'D', 'A', 'C', 'C', 'G', 'B', 'F', 'C', 'E', 'E', 'B', 'D', 'D#', 'A#', 'C#', 'D', 'A', 'C', 'G', 'D', 'C', 'G', 'E', 'C', 'A', 'F#', 'C', 'G', 'E', 'C', 'A', 'F#', 'B', 'D', 'G', 'A#', 'C#', 'G', 'A', 'C', 'G', 'D', 'C', 'F#', 'G', 'G'])
+    elif tlv[0] == "Play musique":
+        music.play(lullaby)
 
 def navigate_through(list_image, list_message):
     """Demande à l'utilisateur de choisir dans le menu et renvoi l'index de son choix
@@ -412,14 +419,24 @@ def get_state(number_of_measures=2000, time=4000):
     for _ in range(number_of_measures):
         total_acceleration += abs(int(accelerometer.get_strength() - 1000))
         sleep(time/number_of_measures)
-    total_acceleration = total_acceleration //  number_of_measures
+    avrg_acceleration = total_acceleration //  number_of_measures
     
-    if total_acceleration < 75:
+    if avrg_acceleration < 75:
         return 0
-    elif total_acceleration < 200:
+    elif avrg_acceleration < 200:
         return 1
     else:
         return 2
+
+def get_sound(number_of_measures=500, time=2000):
+    """Retourne le niveau sonore moyen durant une période de temps"""
+    total_sound = 0
+    for _ in range(number_of_measures):
+        total_sound += microphone.sound_level()
+        sleep(time/number_of_measures)
+    avrg_sound = total_sound // number_of_measures
+    
+    return avrg_sound
 
 def baby_state_menu():
     global sessional_password
@@ -431,7 +448,6 @@ def baby_state_menu():
                            '03330:'
                            '00000'))
         # Pendant son sommeil
-        radio.off()
         while not (button_a.was_pressed() or button_b.was_pressed()):
             # Mouvement
             state = get_state()
@@ -441,8 +457,14 @@ def baby_state_menu():
                 send_packet(sessional_password, "Agitated", str(state))
                     
             # Son
-           
-        radio.on()
+            sound = get_sound()
+            if sound > sound_too_loud:
+                send_packet(sessional_password, "Too loud", str(sound))
+                
+            # Si jamais recois une demande
+            packet = radio.receive()
+            if packet:
+                handle_packet(packet, False)
     
     while True:
         index = navigate_through(images_state, messages_state)

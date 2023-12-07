@@ -47,6 +47,11 @@ image_danger = Image('00900:'
                      '00900:'
                      '00000:'
                      '00900')
+image_son = Image('00090:'
+                  '99009:'
+                  '99909:'
+                  '99009:'
+                  '00090')
 image_musique = Image('00990:'
                       '00909:'
                       '00900:'
@@ -59,8 +64,8 @@ messages_home = ["Check baby's state", "Open milk diary", "Check baby's temperat
 images_lait = [image_plus, image_moins, image_zero, image_regarder, image_history, image_retour]
 messages_lait = ["Add new dose of milk", "Remove last dose of milk", "Reset consommation", "See total consommation", "Chech history", "Go back"]
 
-images_etat = [Image.FABULOUS, image_musique, image_retour]
-messages_etat = ["Check baby's state", "Play musique", "Go back"]
+images_etat = [Image.FABULOUS, image_son, image_musique, image_retour]
+messages_etat = ["Check baby's state", "Check sound level", "Play musique", "Go back"]
 
 
 def generate_nonce(a=1, b=1000):
@@ -270,6 +275,8 @@ def ask(subject:str):
         send_packet(sessional_password, "Ask temperature", "")
     elif subject == "State":
         send_packet(sessional_password, "Ask state", "")
+    elif subject == "Sound level":
+        send_packet(sessional_password, "Ask sound level", "")
         
     # Reception du packet
     for _ in range(100):
@@ -281,6 +288,8 @@ def ask(subject:str):
             if tlv[0] == "Give temperature":
                 return tlv[2]
             elif tlv[0] == "Give state":
+                return tlv[2]
+            elif tlv[0] == "Give sound level":
                 return tlv[2]
         sleep(100)
     
@@ -308,8 +317,7 @@ def handle_packet(packet):
     # Si alerte temperature
     elif tlv[0] == "Temp too hot":
         temp = tlv[2]
-        alerte(str(temp), "Temp too hot")
-                
+        alerte(str(temp), "Temp too hot") 
     elif tlv[0] == "Temp too cold":
         temp = tlv[2]
         alerte(str(temp), "Temp too cold")
@@ -319,6 +327,13 @@ def handle_packet(packet):
         radio.off()
         state = tlv[2]
         alerte(str(state), "Baby is awake")
+        radio.on()
+    
+    # Si trop de bruit
+    elif tlv[0] == "Too loud":
+        radio.off()
+        sound = tlv[2]
+        alerte(str(sound), "Baby is crying")
         radio.on()
 
 def navigate_through(list_image, list_message):
@@ -445,12 +460,18 @@ def state_menu():
             if state == "BACK":
                 return
             display.scroll(state)
-        # Si choix jouer de la musique
+        # Si demande le niveau sonore
         elif index == 1:
+            sound_level = ask("Sound level")
+            if sound_level == "BACK":
+                return
+            display.scroll(str(sound_level))
+        # Si choix jouer de la musique
+        elif index == 2:
             send_packet(sessional_password, "Play musique", "")
             show_and_say(Image.YES, "Packet sent")
         # Si retour en arrière
-        elif index == 2:
+        elif index == 3:
             return
 
 
