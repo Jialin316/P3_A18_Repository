@@ -72,6 +72,15 @@ images_settings = [image_son, image_celcius, image_danger, image_retour]
 messages_settings = ["Change volume", "Change temperature limite", "Change max sound", "Go back"]
 
 def generate_nonce(a=1, b=100000):
+    """Génère un nonce unique d'une valeur entre a et b
+
+    Args:
+        a (int, optional): Valeur la plus petite. Defaults to 1.
+        b (int, optional): Valeur la plus grande. Defaults to 100000.
+
+    Returns:
+        int: Nonce unique
+    """
     if len(nonce_list) != b:
         while True:
             nonce = random.randint(a, b)
@@ -279,7 +288,7 @@ def ask_int(a=0, b=9999, base=100, step=1):
         a (int, optional): nombre minimum. Defaults to 0.
         b (int, optional): nombre maximum. Defaults to 9999.
         base (int, optional): nombre affiché par défault. Defaults to 100.
-        step (int, optional): nombre de chiffre qui seront passé
+        step (int, optional): De combien ca avance à chaque fois qu'on appuie sur le bouton
 
     Returns:
         int: Valeur choisis par l'utilisateur
@@ -356,7 +365,7 @@ def check_alerte():
         can_alert_temp = True
 
 def handle_packet(packet, notifie=True):
-    """S'occupe des paquets qu'il reçois
+    """Focntion qui permet de gérer les paquets reçu. Unpack et réponds correctement en fonction du type du paquet
 
     Args:
         packet (str): paquet respectant le format type|longueur|nonce:contenu
@@ -465,6 +474,8 @@ def ask_milk():
     return "BACK"
 
 def baby_milk_menu():
+    """Menu pour la consommation de lait"""
+
     global milk_history
     def show_history(history):
         if history:
@@ -490,6 +501,7 @@ def baby_milk_menu():
             return
 
 def baby_temp_menu():
+    """Menu pour le controle de la température"""
     global sessional_password
     while True:
         index = navigate_through(images_temperature, messages_temperature)
@@ -510,8 +522,11 @@ def get_state(number_of_measures=2000, time=4000):
     """Retourne l'état du bébé en fonction de son accélération moyen sur  un période de temps
 
     Args:
-        number_of_measure (int, optional): Nombre de mesure que le microbit  prendra. Defaults to 2000.
+        number_of_measure (int, optional): Nombre de mesure que le microbit prendra. Defaults to 2000.
         time (int, optional): Période de temps (en ms) sur laquelle le microbit prendra les mesureas. Defaults to 4000.
+
+    Returns:
+        int: 0, 1, 2 ou 3 en fonction de l'état du bébé
     """
     # Calcule l'accélération moyenne 
     total_acceleration = 0 
@@ -532,16 +547,24 @@ def get_state(number_of_measures=2000, time=4000):
         return 2
 
 def get_sound(number_of_measures=500, time=2000):
-    """Retourne le niveau sonore moyen durant une période de temps"""
+    """Retourne le niveau sonore moyen durant une période de temps
+
+    Args:
+        number_of_measure (int, optional): Nombre de mesure que le microbit prendra. Defaults to 500.
+        time (int, optional): Période de temps (en ms) sur laquelle le microbit prendra les mesureas. Defaults to 2000.
+
+    Returns:
+        int: le niveau sonore moyen
+    """
     total_sound = 0
     for _ in range(number_of_measures):
         total_sound += microphone.sound_level()
         sleep(time/number_of_measures)
     avrg_sound = total_sound // number_of_measures
-    
     return avrg_sound
 
 def baby_state_menu():
+    """Menu pour la surveillance de l'état du bébé"""
     global sessional_password
     def put_to_sleep():
         global sound_too_loud
@@ -586,6 +609,7 @@ def baby_state_menu():
             return
 
 def settings_menu():
+    """Menu paramètre"""
     global volume
     def change_min_max_temp():
         global temp_too_cold, temp_too_hot

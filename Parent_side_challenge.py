@@ -77,6 +77,15 @@ messages_settings = ["Change volume", "Go back"]
 
 
 def generate_nonce(a=1, b=1000):
+    """Génère un nonce unique d'une valeur entre a et b
+
+    Args:
+        a (int, optional): Valeur la plus petite. Defaults to 1.
+        b (int, optional): Valeur la plus grande. Defaults to 100000.
+
+    Returns:
+        int: Nonce unique
+    """
     if len(nonce_list) != b:
         while True:
             nonce = random.randint(a, b)
@@ -262,6 +271,12 @@ def show_and_say(image, message:str):
     speech.say(message)
 
 def alerte(screen_txt:str, message:str):
+    """Emets un alerte, son au maximum et préviens d'un danger
+
+    Args:
+        screen_txt (str): Message qui sera affiché sur l'écran du bebi
+        message (str): Message qui sera prononcé par le haut parleur
+    """
     global volume
     
     set_volume(255)
@@ -285,7 +300,7 @@ def ask_int(a=0, b=9999, base=100, step=1):
         a (int, optional): nombre minimum. Defaults to 0.
         b (int, optional): nombre maximum. Defaults to 9999.
         base (int, optional): nombre affiché par défault. Defaults to 100.
-        step (int, optional): nombre de chiffre qui seront passé
+        step (int, optional): De combien ca avance à chaque fois qu'on appuie sur le bouton
 
     Returns:
         int: Valeur choisis par l'utilisateur
@@ -315,6 +330,14 @@ def ask_int(a=0, b=9999, base=100, step=1):
     return number
 
 def ask(subject:str):
+    """Envoie un demande au bebi enfant et attends la réponse de ce bebi
+
+    Args:
+        subject (str): Le sujet que le bebi parent souhaite récupérer
+
+    Returns:
+        str: retourne le contenu de la réponse. ou BACK si aucune réponse
+    """
     global sessional_password
     
     display.show(Image.ALL_CLOCKS, wait=False)
@@ -346,6 +369,11 @@ def ask(subject:str):
     return "BACK"
 
 def handle_packet(packet):
+    """Focntion qui permet de gérer les paquets reçu. Unpack et réponds correctement en fonction du type du paquet
+
+    Args:
+        packet (str): paquet respectant le format type|longueur|nonce:contenu
+    """
     global sessional_password
     
     # Unpack du packet
@@ -388,7 +416,7 @@ def handle_packet(packet):
         radio.on()
 
 def navigate_through(list_image, list_message):
-    """Demande à l'utilisateur de choisir dans le menu et renvoi l'index de son choix
+    """Demande à l'utilisateur de choisir dans le menu et renvoi l'index de son choix. (Fonction dans lequel le bebi sera le plus souvent)
 
     Args:
         list_image (list): Liste d'objet image
@@ -431,6 +459,7 @@ def navigate_through(list_image, list_message):
     return index
 
 def milk_menu():
+    """Menu pour la consommation de lait"""
     global milk_history
     def add_milk(history):
         """Demande la quantité de lait donné au bébé (en mL), et l'ajoute à l'historique
@@ -467,16 +496,19 @@ def milk_menu():
             show_and_say(Image.NO, "No history have been recorded")
             return []
     def reset_milk(history):
+        """Remet à 0 la consommation de lait"""
         history.clear()
         show_and_say(Image.YES, "The history has been reseted")
         return history
     def show_history(history):
+        """Montre chaque dose prise une par une"""
         if history:
             for element in history:
                 display.scroll(str(element))
         else:
             show_and_say(Image.NO, "No history have been recorded")
     def show_consommation(history):
+        """Montre la consommation total de lait"""
         total = sum(history)
         display.scroll(str(total))
 
@@ -496,6 +528,7 @@ def milk_menu():
             return
 
 def state_menu():
+    """Menu pour la surveillance de l'état du bébé"""
     while True:
         index = navigate_through(images_etat, messages_etat)
         # Si choix de demander l'état du bébé
@@ -519,6 +552,7 @@ def state_menu():
             return
 
 def settings_menu():
+    """Menu paramètre"""
     global volume
     while True:
         index = navigate_through(images_settings, messages_settings)
@@ -528,6 +562,8 @@ def settings_menu():
             set_volume(volume * 28)
         elif index == 1:
             return
+
+
 # Attend une connexion
 while not sessional_password:
     display.show("P")
