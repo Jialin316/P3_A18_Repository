@@ -173,7 +173,7 @@ def send_packet(key, type, content):
     nonce = generate_nonce()
     if nonce:
         nonce_c = vigenere(nonce, key)
-        lenght_c = vigenere(len(content), key)
+        lenght_c = vigenere(len(content) + len(nonce), key)
         type_c = vigenere(type, key)
         content_c = vigenere(content, key)
         
@@ -249,7 +249,7 @@ def respond_to_connexion_request(key):
             list_message = unpack_data(packet, key)
             # Si type correspondant
             if list_message[0] == "0x01":
-                show_and_say(Image.ALL_CLOCKS, "Trying")
+                display.show(Image.ALL_CLOCKS, wait=False)
                 # Retourne le hash de la réponse et le nouveau mot de passe
                 hashed_result = calculate_challenge_response(list_message[2])
                 new_password = str(hashed_result[-3:]) + key

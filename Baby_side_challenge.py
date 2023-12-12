@@ -167,7 +167,7 @@ def send_packet(key, type, content):
     nonce = generate_nonce()
     if nonce:
         nonce_c = vigenere(nonce, key)
-        lenght_c = vigenere(len(content), key)
+        lenght_c = vigenere(len(content) + len(nonce), key)
         type_c = vigenere(type, key)
         content_c = vigenere(content, key)
         
@@ -236,7 +236,7 @@ def establish_connexion(key):
     :param (str) key:                  Clé de chiffrement
 	:return (srt)challenge_response:   Réponse au challenge
     """
-    show_and_say(Image.ALL_CLOCKS, "Trying")
+    display.show(Image.ALL_CLOCKS, wait=False)
     # Génère 4 chiffres aléatoire
     numbers = []
     for _ in range(4):
