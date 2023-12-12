@@ -1,7 +1,6 @@
 from microbit import *
 import radio
 import random
-import music
 import speech
 
 #Initialisation des variables du micro:bit
@@ -11,7 +10,8 @@ password = "PISSEPENDOUILLE"
 sessional_password = ""
 nonce_list = set()
 milk_history = []
-set_volume(100)
+volume = 4
+set_volume(volume * 28)
 
 image_menu_statut = Image.HAPPY
 image_menu_lait = Image.PACMAN
@@ -20,6 +20,11 @@ image_menu_temperature = Image('00055:'
                           '90000:'
                           '90000:'
                           '99900')
+image_parametre = Image('00900:'
+                        '09790:'
+                        '97579:'
+                        '09790:'
+                        '00900')
 image_plus = Image('00900:'
                    '00900:'
                    '99999:'
@@ -58,14 +63,17 @@ image_musique = Image('00990:'
                       '09900:'
                       '09900')
 
-images_home = [image_menu_statut, image_menu_lait, image_menu_temperature]
-messages_home = ["Check baby's state", "Open milk diary", "Check baby's temperature"]
+images_home = [image_menu_statut, image_menu_lait, image_menu_temperature, image_parametre]
+messages_home = ["Check baby's state", "Open milk diary", "Check baby's temperature", "Settings"]
 
 images_lait = [image_plus, image_moins, image_zero, image_regarder, image_history, image_retour]
 messages_lait = ["Add new dose of milk", "Remove last dose of milk", "Reset consommation", "See total consommation", "Chech history", "Go back"]
 
 images_etat = [Image.FABULOUS, image_son, image_musique, image_retour]
 messages_etat = ["Check baby's state", "Check sound level", "Play musique", "Go back"]
+
+images_settings = [image_son, image_retour]
+messages_settings = ["Change volume", "Go back"]
 
 
 def generate_nonce(a=1, b=1000):
@@ -254,6 +262,9 @@ def show_and_say(image, message:str):
     speech.say(message)
 
 def alerte(screen_txt:str, message:str):
+    global volume
+    
+    set_volume(255)
     # Tant que pas d'action
     while not (pin_logo.is_touched() or button_a.was_pressed() or button_b.was_pressed()):
         # Affiche et prononce un danger
@@ -265,6 +276,43 @@ def alerte(screen_txt:str, message:str):
         display.scroll(screen_txt, wait=False)
         speech.say(message)
         sleep(2000)
+    set_volume(volume * 28)
+
+def ask_int(a=0, b=9999, base=100, step=1):
+    """Fonction permettant de demander un nombre à l'utilisateur
+
+    Args:
+        a (int, optional): nombre minimum. Defaults to 0.
+        b (int, optional): nombre maximum. Defaults to 9999.
+        base (int, optional): nombre affiché par défault. Defaults to 100.
+        step (int, optional): nombre de chiffre qui seront passé
+
+    Returns:
+        int: Valeur choisis par l'utilisateur
+    """
+    number = base
+    count = 0
+    while (not pin_logo.is_touched()) or (count == 0):
+        if number in (0,1,2,3,4,5,6,7,8,9):
+            display.show(str(number))
+            if not count:
+                sleep(250)
+        else:
+            display.scroll(str(number))
+        count = 1
+        # -1
+        if button_a.was_pressed():
+            number -= button_a.get_presses() * step
+            # Si trop petit
+            if number < a:
+                number = a
+        # +1
+        elif button_b.was_pressed():
+            number += button_b.get_presses() * step
+            # Si trop grand
+            if number > b:
+                number = b
+    return number
 
 def ask(subject:str):
     global sessional_password
@@ -322,11 +370,14 @@ def handle_packet(packet):
         temp = tlv[2]
         alerte(str(temp), "Temp too cold")
                 
-    # Si alerte endormissement
-    elif tlv[0] == "Too agitated" or tlv[0] == "Agitated":
+    # Si alerte mouvement
+    elif tlv[0] in ("Agitated", "Too agitated"):
         radio.off()
-        state = tlv[2]
-        alerte(str(state), "Baby is awake")
+        alerte(str(tlv[2]), "Baby is awake")
+        radio.on()
+    elif tlv[0] == "Fall":
+        radio.off()
+        alerte(str(tlv[2]), "Baby might have fallen")
         radio.on()
     
     # Si trop de bruit
@@ -355,6 +406,7 @@ def navigate_through(list_image, list_message):
     while not pin_logo.is_touched():
         # Vers la gauche si bouton a 
         if button_a.was_pressed():
+            button_a.get_presses()
             index -= 1
             # Si négatif on remet à la fin
             if index == -1:
@@ -362,6 +414,7 @@ def navigate_through(list_image, list_message):
             show_and_say(list_image[index], list_message[index])
         # Vers la droite si bouton b
         elif button_b.was_pressed():
+            button_b.get_presses()
             index += 1
             # Si index trop grand, retourne au début
             index %= len(list_image)
@@ -388,22 +441,12 @@ def milk_menu():
         Returns:
             list: Historique du lait donné
         """
-        milk = 100
-        count = 0
-        while (not pin_logo.is_touched()) or (count == 0):
-            display.scroll(str(milk))
-            count = 1
-            # -1
-            if button_a.was_pressed():
-                milk -= button_a.get_presses()
-                # Si négatif
-                if milk < 0:
-                    milk = 0
-            # +1
-            elif button_b.was_pressed():
-                milk += button_b.get_presses()
+        milk = ask_int(step=5)
         # Ajoute la nouvelle dose dans l'historique
-        history.append(milk)
+        if milk:
+            history.append(milk)
+        else:
+            show_and_say(Image.NO, "No milk have been added")
         
         show_and_say(Image.YES, "You have added " + str(milk) + "mililiter of milk")
         return history
@@ -422,6 +465,7 @@ def milk_menu():
             return history
         else:
             show_and_say(Image.NO, "No history have been recorded")
+            return []
     def reset_milk(history):
         history.clear()
         show_and_say(Image.YES, "The history has been reseted")
@@ -474,7 +518,16 @@ def state_menu():
         elif index == 3:
             return
 
-
+def settings_menu():
+    global volume
+    while True:
+        index = navigate_through(images_settings, messages_settings)
+        # Si niveau sonore
+        if index == 0:
+            volume = ask_int(0, 9, volume)
+            set_volume(volume * 28)
+        elif index == 1:
+            return
 # Attend une connexion
 while not sessional_password:
     display.show("P")
@@ -502,3 +555,7 @@ while True:
         # Affiche la température
         display.scroll(str(temp), wait=False)
         speech.say("The temperature of the baby is " + str(temp) + " degrees Celcius")
+        
+    # Si choix = Paramètre
+    elif index == 3:
+        settings_menu()

@@ -10,21 +10,25 @@ radio.on()
 password = "PISSEPENDOUILLE"
 sessional_password = ""
 nonce_list = set()
-baby_state = 0
 temp_too_hot = 32
 temp_too_cold = 18
 can_alert_temp = True
 sound_too_loud = 60
-lullaby = ['C', 'G', 'E', 'C', 'A', 'F#', 'C', 'G', 'E', 'C', 'A', 'F#', 'C', 'G', 'E', 'C', 'A', 'F#', 'C', 'G', 'E', 'C', 'A', 'F#', 'B', 'D', 'G', 'A#', 'C#', 'G', 'A', 'C', 'G', 'D', 'C', 'F#', 'C', 'G', 'E', 'C', 'A', 'F#', 'C', 'G', 'E', 'C', 'A', 'F#', 'B', 'D', 'G', 'A#', 'C#', 'G', 'A', 'C', 'G', 'D', 'C', 'F#', 'F', 'C', 'E', 'E', 'B', 'D', 'D', 'A', 'C', 'C', 'G', 'B', 'F', 'C', 'E', 'E', 'B', 'D', 'D#', 'A#', 'C#', 'D', 'A', 'C', 'G', 'D', 'C', 'G', 'E', 'C', 'A', 'F#', 'C', 'G', 'E', 'C', 'A', 'F#', 'B', 'D', 'G', 'A#', 'C#', 'G', 'A', 'C', 'G', 'D', 'C', 'F#', 'G', 'G']
-set_volume(100)
+volume = 4
+set_volume(volume * 28)
 
 image_menu_statut = Image.HAPPY
 image_menu_lait = Image.PACMAN
-image_menu_temperature = Image('00055:'
-                               '99955:'
-                               '90000:'
-                               '90000:'
-                               '99900')
+image_celcius = Image('00055:'
+                      '99955:'
+                      '90000:'
+                      '90000:'
+                      '99900')
+image_parametre = Image('00900:'
+                        '09790:'
+                        '97579:'
+                        '09790:'
+                        '00900')
 image_regarder = Image.SURPRISED
 image_history = Image('00900:'
                       '00900:'
@@ -36,12 +40,27 @@ image_retour = Image('00000:'
                      '09009:'
                      '99999:'
                      '09000')
+image_musique = Image('00990:'
+                      '00909:'
+                      '00900:'
+                      '09900:'
+                      '09900')
+image_son = Image('00090:'
+                  '99009:'
+                  '99909:'
+                  '99009:'
+                  '00090')
+image_danger = Image('00900:'
+                     '00900:'
+                     '00900:'
+                     '00000:'
+                     '00900')
 
-images_home = [image_menu_statut, image_menu_lait, image_menu_temperature]
-messages_home = ["Check baby's state", "Open milk diary", "Check baby's temperature"]
+images_home = [image_menu_statut, image_menu_lait, image_celcius, image_parametre]
+messages_home = ["Check baby's state", "Open milk diary", "Check baby's temperature", "Settings"]
 
-images_state = [Image.FABULOUS, image_retour]
-messages_state = ["Activate sleep mode", "Go back"]
+images_state = [Image.FABULOUS, image_musique, image_retour]
+messages_state = ["Activate sleep mode", "Play lullaby", "Go back"]
 
 images_lait = [image_regarder, image_history, image_retour]
 messages_lait = ["See total consommation", "Chech history", "Go back"]
@@ -49,6 +68,8 @@ messages_lait = ["See total consommation", "Chech history", "Go back"]
 images_temperature = ["1", "2", image_retour]
 messages_temperature = ["Check temperature", "Send temperature to parents", "Go back"]
 
+images_settings = [image_son, image_celcius, image_danger, image_retour]
+messages_settings = ["Change volume", "Change temperature limite", "Change max sound", "Go back"]
 
 def generate_nonce(a=1, b=100000):
     if len(nonce_list) != b:
@@ -240,16 +261,81 @@ def establish_connexion(key):
     return "No packet received", ""
 
 
-def show_and_say(image, message, show=True):
+def show_and_say(image, message, notifie=True):
     """Fonction qui permet d'affiche une image et de prononcer un texte
 
     Args:
         image (Image): Objet Image
         message (str): Texte qu'il prononcera
     """
-    if show:
+    if notifie:
         display.show(image, wait=False)
         speech.say(message)
+
+def ask_int(a=0, b=9999, base=100, step=1):
+    """Fonction permettant de demander un nombre à l'utilisateur
+
+    Args:
+        a (int, optional): nombre minimum. Defaults to 0.
+        b (int, optional): nombre maximum. Defaults to 9999.
+        base (int, optional): nombre affiché par défault. Defaults to 100.
+        step (int, optional): nombre de chiffre qui seront passé
+
+    Returns:
+        int: Valeur choisis par l'utilisateur
+    """
+    number = base
+    count = 0
+    while (not pin_logo.is_touched()) or (count == 0):
+        if number in (0,1,2,3,4,5,6,7,8,9):
+            display.show(str(number))
+            if not count:
+                sleep(250)
+        else:
+            display.scroll(str(number))
+        count = 1
+        # -1
+        if button_a.was_pressed():
+            number -= button_a.get_presses() * step
+            # Si trop petit
+            if number < a:
+                number = a
+        # +1
+        elif button_b.was_pressed():
+            number += button_b.get_presses() * step
+            # Si trop grand
+            if number > b:
+                number = b
+    return number
+
+def play_lullaby(rep=1):
+    """Fonction jouant un musique pour calmer le bébé
+
+    Args:
+        rep (int, optional): nombre de fois que sera joué la musique. Defaults to 1.
+    """
+    for _ in range(rep):
+        for _ in range(2):
+            music.pitch(220, 250)
+            sleep(250)
+            music.pitch(220, 250)
+            sleep(250)
+            music.pitch(262, 750)
+            sleep(350)
+        music.pitch(220, 250)
+        sleep(250)
+        music.pitch(262, 250)
+        sleep(250)
+        music.pitch(349, 500)
+        sleep(500)
+        music.pitch(330, 500)
+        sleep(500)
+        music.pitch(294, 250)
+        sleep(250)
+        music.pitch(294, 250)
+        sleep(250)
+        music.pitch(262, 750)
+        sleep(500)
 
 def check_alerte():
     """Vérifie si il y'a des alertes à envoyer"""
@@ -269,20 +355,26 @@ def check_alerte():
     elif temp > temp_too_cold+1 and temp < temp_too_hot-1:
         can_alert_temp = True
 
-def handle_packet(packet, show=True):
+def handle_packet(packet, notifie=True):
+    """S'occupe des paquets qu'il reçois
+
+    Args:
+        packet (str): paquet respectant le format type|longueur|nonce:contenu
+        notifie (bool, optional): Affiche ou non les notifications de reçu et d'envoie de paquet. Defaults to True.
+    """
     # Unpack du packet
-    show_and_say(Image.ALL_CLOCKS, "Packet received", show)
+    show_and_say(Image.ALL_CLOCKS, "Packet received", notifie)
     tlv = unpack_data(packet, sessional_password)
             
     # Si c'est une demande pour la temperature
     if tlv[0] == "Ask temperature":
         send_packet(sessional_password, "Give temperature", str(temperature()))
-        show_and_say(Image.YES, "Temperature sent", show)
+        show_and_say(Image.YES, "Temperature sent", notifie)
 
     # Si demande de l'état du bébé
     elif tlv[0] == "Ask state":
         send_packet(sessional_password, "Give state", str(get_state()))
-        show_and_say(Image.YES, "State sent", show)
+        show_and_say(Image.YES, "State sent", notifie)
     
     # Si demande le niveau sonore
     elif tlv[0] == "Ask sound level":
@@ -290,10 +382,10 @@ def handle_packet(packet, show=True):
     
     # Si demande de musique     
     elif tlv[0] == "Play musique":
-        music.play(lullaby)
+        play_lullaby()
 
 def navigate_through(list_image, list_message):
-    """Demande à l'utilisateur de choisir dans le menu et renvoi l'index de son choix
+    """Demande à l'utilisateur de choisir dans le menu et renvoi l'index de son choix, (fonction dans lequel le microbit sera le plus souvent)
 
     Args:
         list_image (list): Liste d'objet image
@@ -311,21 +403,20 @@ def navigate_through(list_image, list_message):
     while not pin_logo.is_touched():
         # Vers la gauche si bouton a 
         if button_a.was_pressed():
+            button_a.get_presses()
             index -= 1
             # Si négatif on remet à la fin
             if index == -1:
                 index += len(list_image)
-            # Si index trop grand, retourne au début
-            index %= len(list_image)
+            # Montre le choix
             show_and_say(list_image[index], list_message[index])
         # Vers la droite si bouton b
         elif button_b.was_pressed():
+            button_b.get_presses()
             index += 1
-            # Si négatif on remet à la fin
-            if index == -1:
-                index += len(list_image)
             # Si index trop grand, retourne au début
             index %= len(list_image)
+            # Montre le choix
             show_and_say(list_image[index], list_message[index])
         
         # Vérifie si il y'a des alertes à envoyer
@@ -335,19 +426,27 @@ def navigate_through(list_image, list_message):
         packet = radio.receive()
         if packet:
             handle_packet(packet)
+            # Retourne au début des choix
             index = 0
             show_and_say(list_image[index], list_message[index])
             
     return index
 
 def ask_milk():
+    """Fonction qui vas demander l'historique du lait au bebi parent
+
+    Returns:
+        list: L'historique des prise de lait
+    """
     global sessional_password
         
     send_packet(sessional_password, "Ask milk history", "")
-        
+    display.show(Image.ALL_CLOCKS, wait=False)
+    
     # Reception du packet
-    for _ in range(100000):
+    for _ in range(100):
         packet = radio.receive()
+        sleep(100)
         if packet:
             # Unpack du packet
             tlv = unpack_data(packet, sessional_password)
@@ -408,7 +507,7 @@ def baby_temp_menu():
             return
 
 def get_state(number_of_measures=2000, time=4000):
-    """Retourne l'état du bébé en fonction de son accélération sur une duréé de 3sec
+    """Retourne l'état du bébé en fonction de son accélération moyen sur  un période de temps
 
     Args:
         number_of_measure (int, optional): Nombre de mesure que le microbit  prendra. Defaults to 2000.
@@ -417,13 +516,17 @@ def get_state(number_of_measures=2000, time=4000):
     # Calcule l'accélération moyenne 
     total_acceleration = 0 
     for _ in range(number_of_measures):
-        total_acceleration += abs(int(accelerometer.get_strength() - 1000))
+        acc = abs(int(accelerometer.get_strength() - 1000))
+        # Si acceleration trop forte (peut etre tomber)
+        if acc > 1500:
+            return 3
+        total_acceleration += acc
         sleep(time/number_of_measures)
     avrg_acceleration = total_acceleration //  number_of_measures
     
-    if avrg_acceleration < 75:
+    if avrg_acceleration < 65:
         return 0
-    elif avrg_acceleration < 200:
+    elif avrg_acceleration < 100:
         return 1
     else:
         return 2
@@ -441,6 +544,8 @@ def get_sound(number_of_measures=500, time=2000):
 def baby_state_menu():
     global sessional_password
     def put_to_sleep():
+        global sound_too_loud
+        
         show_and_say(Image.YES, "Sleep mode activated")
         display.show(Image('00000:'
                            '33033:'
@@ -451,10 +556,12 @@ def baby_state_menu():
         while not (button_a.was_pressed() or button_b.was_pressed()):
             # Mouvement
             state = get_state()
-            if state == 2:
-                send_packet(sessional_password, "Too agitated", str(state))
-            elif state == 1:
-                send_packet(sessional_password, "Agitated", str(state))
+            if state == 1:
+                send_packet(sessional_password, "Agitated", "1 : Agitated")
+            elif state == 2:
+                send_packet(sessional_password, "Too agitated", "2 : Too agitated")
+            elif state == 3:
+                send_packet(sessional_password, "Fall", "3 : The baby may have fallen")
                     
             # Son
             sound = get_sound()
@@ -471,10 +578,48 @@ def baby_state_menu():
         # Activation du mode sommeil
         if index == 0:
             put_to_sleep()
-        # Retour en arrière
+        # Jouer de la musique
         elif index == 1:
+            play_lullaby()
+        # Retour en arrière
+        elif index == 2:
             return
 
+def settings_menu():
+    global volume
+    def change_min_max_temp():
+        global temp_too_cold, temp_too_hot
+        
+        # Change la température minimum
+        speech.say("Minimum temperature")
+        min_temp = ask_int(-10, temp_too_hot, temp_too_cold)
+        temp_too_cold = min_temp
+        # Change la température maximunm
+        speech.say("Maximum temperature")
+        max_temp = ask_int(temp_too_cold, 100, temp_too_hot)
+        temp_too_hot = max_temp
+        
+        show_and_say(Image.YES, "Changed")
+    def change_max_sound():
+        global sound_too_loud
+        
+        new_sound = ask_int(0, 255, sound_too_loud)
+        sound_too_loud = new_sound
+        
+        show_and_say(Image.YES, "Changed")
+
+    while True:
+        index = navigate_through(images_settings, messages_settings)
+        # Si niveau sonore
+        if index == 0:
+            volume = ask_int(0, 9, volume)
+            set_volume(volume * 28)
+        elif index == 1:
+            change_min_max_temp()
+        elif index == 2:
+            change_max_sound()
+        elif index == 3:
+            return
 
 # Tente un connexion si appuie sur bouton a
 display.show("B")
@@ -503,3 +648,7 @@ while True:
     # Si choix = Capteur de température
     elif index == 2:
         baby_temp_menu()
+    
+    # Si choix = Paramètre
+    elif index == 3:
+        settings_menu()
