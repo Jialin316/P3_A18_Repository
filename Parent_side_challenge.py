@@ -76,7 +76,7 @@ images_settings = [image_son, image_retour]
 messages_settings = ["Change volume", "Go back"]
 
 
-def generate_nonce(a=1, b=1000):
+def generate_nonce(a=1, b=100000):
     """Génère un nonce unique d'une valeur entre a et b
 
     Args:
