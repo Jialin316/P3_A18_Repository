@@ -167,7 +167,7 @@ def send_packet(key, type, content):
     nonce = generate_nonce()
     if nonce:
         nonce_c = vigenere(nonce, key)
-        lenght_c = vigenere(len(content) + len(nonce), key)
+        lenght_c = vigenere(len(content) + len(str(nonce)), key)
         type_c = vigenere(type, key)
         content_c = vigenere(content, key)
         
